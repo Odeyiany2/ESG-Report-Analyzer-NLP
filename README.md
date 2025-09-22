@@ -6,6 +6,9 @@ An NLP-powered tool that automatically extracts, classifies, and evaluates Envir
 
 ESG reporting has become mandatory under standards like IFRS S1/S2, SASB, and the GRI framework. However, company disclosures are often lengthy, vague, and inconsistent. Traditional manual review methods are slow, subjective, and resource-intensive.
 
+## **❓ Research Question**
+ESG disclosures are growing, but often inconsistent and non-standardized. Can AI/NLP techniques measure and compare ESG disclosure quality of Nigerian listed firms more effectively than manual content analysis?
+
 ## **🎯 Solution**
 
  - This project explores how Natural Language Processing (NLP) and Machine Learning (ML) can automate ESG disclosure analysis.
