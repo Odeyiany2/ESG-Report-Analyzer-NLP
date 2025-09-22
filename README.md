@@ -17,3 +17,15 @@ ESG reporting has become mandatory under standards like IFRS S1/S2, SASB, and th
  - Score ESG coverage and flag missing or weak disclosures.
 
  - Provide an interactive Streamlit dashboard for assurance-style insights.
+
+## **🛠️ Tech Stack**
+
+ - Python (NLP & ML)
+
+ - Scikit-learn, HuggingFace Transformers, FinBERT
+
+ - PyMuPDF / pdfplumber (PDF text extraction)
+
+ - Pandas, NumPy, Matplotlib/Seaborn (data analysis & visualization)
+
+ - Streamlit - model deployment
