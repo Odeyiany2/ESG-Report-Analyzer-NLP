@@ -32,3 +32,13 @@ ESG disclosures are growing, but often inconsistent and non-standardized. Can AI
  - Pandas, NumPy, Matplotlib/Seaborn (data analysis & visualization)
 
  - Streamlit - model deployment
+
+## **📚 Data Sources**
+
+ - SEC EDGAR Filings (10-K + sustainability reports)
+
+ - Nigerian Stock Exchange filings
+
+ - Kaggle ESG datasets
+
+ - Global Reporting Initiative (GRI) database
