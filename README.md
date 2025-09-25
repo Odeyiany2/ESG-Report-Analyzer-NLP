@@ -42,3 +42,14 @@ ESG disclosures are growing, but often inconsistent and non-standardized. Can AI
  - Kaggle ESG datasets
 
  - Global Reporting Initiative (GRI) database
+
+
+## **Main Features all in the Streamlit Dashboard**
+
+ - Chatbot that analyzes coverage of companys' Sustainability reports 
+
+ - ML models that: 
+    
+     - Regression model: predicts scores for each ESG Category (Economic, Social and Governance) and gives the overall ESG Score (avaerage of categories combined)
+
+     - Time Series Forecast - forecasts ESG trend for the company
