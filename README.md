@@ -1,55 +1,59 @@
-# **🌍 ESG Report Analyzer (NLP + Finance ML)**
+# **🌍ESG Report Analyzer & Predictor**
+## **📌 Overview**
 
-An NLP-powered tool that automatically extracts, classifies, and evaluates Environmental, Social, and Governance (ESG) disclosures from company reports. Built with Machine Learning and deployed via Streamlit.
+This project combines AI + Accounting to help companies assess and improve their Environmental, Social, and Governance (ESG) disclosures.
 
-## **📌 Problem Statement**
+This MVP has tow main layers:
 
-ESG reporting has become mandatory under standards like IFRS S1/S2, SASB, and the GRI framework. However, company disclosures are often lengthy, vague, and inconsistent. Traditional manual review methods are slow, subjective, and resource-intensive.
+ - Chatbot ESG Report Analyzer (RAG) → Companies upload their sustainability reports, and a chatbot analyzes coverage against standards (GRI, SASB, IFRS) to detect vagueness, compliance gaps, and missing sections.
 
-## **❓ Research Question**
-ESG disclosures are growing, but often inconsistent and non-standardized. Can AI/NLP techniques measure and compare ESG disclosure quality of Nigerian listed firms more effectively than manual content analysis?
+ - ESG Score Predictor & Forecasting → Machine learning models predict ESG category scores (Environmental, Social, Governance) and forecast future ESG trends based on company features.
 
-## **🎯 Solution**
+## **🚀 Features**
+ - Layer 1: ESG Chatbot Analyzer
 
- - This project explores how Natural Language Processing (NLP) and Machine Learning (ML) can automate ESG disclosure analysis.
+    📂 Upload annual or sustainability reports (PDF).
+    
+    🤖 Chatbot Q&A with the report → "Does this report cover board independence?"
+    
+    ✅ Compliance breakdown with ESG standards (GRI, SASB, IFRS).
+    
+    📊 Coverage summary (percentage compliance, vague vs. clear disclosures).
 
- - Classify disclosures into ESG categories (Environmental, Social, Governance).
+- Layer 2: Predictive Models
 
- - Evaluate sentiment (positive, neutral, negative) of ESG statements.
-
- - Score ESG coverage and flag missing or weak disclosures.
-
- - Provide an interactive Streamlit dashboard for assurance-style insights.
+    🔮 Regression Model → Predict ESG category scores (Environmental, Social, Governance).
+    
+    📈 Time Series Forecasting → Predict future ESG trends for a company.
+    
+    💬 Interactive assistant asks for company features and outputs scores + forecasts.
+    
+    📊 Visualization of ESG trends and predicted future compliance.
 
 ## **🛠️ Tech Stack**
 
- - Python (NLP & ML)
+ - Backend: FastAPI (API for chatbot + models)
 
- - Scikit-learn, HuggingFace Transformers, FinBERT
+ - Frontend: Streamlit (Dashboard + Chat UI)
 
- - PyMuPDF / pdfplumber (PDF text extraction)
+ - NLP / RAG: LangChain, HuggingFace Transformers, ChromaDB
 
- - Pandas, NumPy, Matplotlib/Seaborn (data analysis & visualization)
+ - ML Models:
 
- - Streamlit - model deployment
-
-## **📚 Data Sources**
-
- - SEC EDGAR Filings (10-K + sustainability reports)
-
- - Nigerian Stock Exchange filings
-
- - Kaggle ESG datasets
-
- - Global Reporting Initiative (GRI) database
-
-
-## **Main Features all in the Streamlit Dashboard**
-
- - Chatbot that analyzes coverage of companys' Sustainability reports 
-
- - ML models that: 
+     - Regression (scikit-learn)
     
-     - Regression model: predicts scores for each ESG Category (Economic, Social and Governance) and gives the overall ESG Score (avaerage of categories combined)
+     - Time Series Forecast (Prophet / statsmodels)
+    
+     - ESG Classification (TF-IDF + Logistic Regression, Transformers like FinBERT)
 
-     - Time Series Forecast - forecasts ESG trend for the company
+ - Data:
+
+     - SEC Filings (10-K ESG sections)
+    
+     - Nigerian Stock Exchange Filings
+    
+     - UN Global Compact Reports
+    
+     - Kaggle ESG datasets (structured labels)
+    
+     - Storage: ChromaDB (vector store)
