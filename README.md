@@ -57,3 +57,19 @@ This MVP has tow main layers:
      - Kaggle ESG datasets (structured labels)
     
      - Storage: ChromaDB (vector store)
+
+## **📅 Roadmap**
+
+- [x] Setup repo + data collection
+
+- [ ] Build ESG chatbot (RAG) MVP
+
+- [ ] Add ESG text classification model
+
+- [ ] Build regression ESG scoring model
+
+- [ ] Add time-series forecasting for ESG trends
+
+- [ ] Integrate all in Streamlit dashboard
+
+- [ ] Deploy full solution (Streamlit Cloud / Render)
