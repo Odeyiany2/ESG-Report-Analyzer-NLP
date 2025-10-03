@@ -23,7 +23,43 @@ def load_standard_documents(standard_docs_dir: str) -> List[Document]:
 
     #iterate through all files in the directory
     for root, _, files in os.walk(standard_docs_dir):
-        pass
+        subject = Path(root)
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_ext = os.path.splitext(file)[1].lower()
+            try:
+                if file_ext == ".pdf":
+                    print(f"[PDF] Processing PDF: {file}")
+                    doc_handler_logger.info(f"[PDF] Processing PDF: {file}")
+                    loader = PyPDFLoader(file_path=file_path)
+                    docs = loader.load()
+                    for d in docs:
+                        d.metadata["subject"] = subject.name
+                        all_standard_docs.append(d)
+                elif file_ext == ".docx":
+                    print(f"[DOCX] Processing DOCX: {file}")
+                    doc_handler_logger.info(f"[DOCX] Processing DOCX: {file}")
+                    loader = Docx2txtLoader(file_path=file_path)
+                    docs = loader.load()
+                    for d in docs:
+                        d.metadata["subject"] = subject.name
+                        all_standard_docs.append(d)
+                elif file_ext == ".txt":
+                    print(f"[TXT] Processing file in text format:{file}")
+                    doc_handler_logger.info(f"[TXT] Processing file in text format:{file}")
+                    loader = TextLoader(file_path=file_path, encoding = "utf-8")
+                    docs = loader.load()
+                    for d in docs:
+                        d.metadata["subject"] = subject.name
+                        all_standard_docs.append(d)
+                else:
+                    doc_handler_logger.warning(f"Unsupported file type: {file_ext}. Skipping file: {file}")
+                    print(f"Unsupported file type: {file_ext}. Skipping file: {file}")
+                    continue
+            except Exception as e:
+                doc_handler_logger.error(f"Error loading file {file_path}, Error: {e}")
+                print(f"Error loading file {file_path}, Error: {e}")
+                continue
 
 def load_uploaded_documents(uploaded_files) -> List[Document]:
     """
