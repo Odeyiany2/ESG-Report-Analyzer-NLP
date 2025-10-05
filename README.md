@@ -29,6 +29,7 @@ This MVP has tow main layers:
     💬 Interactive assistant asks for company features and outputs scores + forecasts.
     
     📊 Visualization of ESG trends and predicted future compliance.
+  ![](https://github.com/Odeyiany2/ESG-Report-Analyzer-NLP/blob/main/architecture/ESG_workflow.png)
 
 ## **🛠️ Tech Stack**
 
