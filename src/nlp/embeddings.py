@@ -3,35 +3,48 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
+from src.utils.logging import embedding_logger
 
-def embed_standards(standards: List[str], persist_directory: str) -> Chroma:
-    """
-    Embeds a list of ESG standards -> for the banks and consumer finance -> using HuggingFaceEmbeddings 
-    and stores them in a Chroma vector store.
-    """
-
-    # initialize the embedding model
-    embedding_model  = HuggingFaceEmbeddings(
-        model_name = "intfloat/e5-base-v2", 
-        model_kwargs = {'device': 'cpu'}
-    )
-
-    # create documents from the standards
-    documents = [Document(page_content=standard) for standard in standards]
-
-    # split the documents into smaller chunks
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 800,
-        chunk_overlap = 100,
-        separators = ["\n\n", "\n", " ", ""]
-    )
-    texts = text_splitter.split_documents(documents)
-
-    # create the Chroma vector store
-    vector_store = Chroma.from_documents(
-        documents = texts,
-        embedding = embedding_model,
-        persist_directory = persist_directory
-    )
-
-    return vector_store
+class EmbeddingHandler:
+    def __init__(self, model_name: str = "intfloat/e5-base-v2", device: str = "cpu"):
+        self.embedding_model = HuggingFaceEmbeddings(
+            model_name=model_name,
+            model_kwargs={'device': device}
+        )
+    def text_split(self, documents: List[Document], chunk_size: int = 800, chunk_overlap: int = 100) -> List[Document]:
+        """
+        Splits documents into smaller chunks for better embedding performance.
+        """
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", " ", ""]
+        )
+        return text_splitter.split_documents(documents)
+    
+    def embed_documents(self, documents: List[Document], persist_directory: str) -> Chroma:
+        """
+        Embeds documents and stores them in a Chroma vector store.
+        """
+        try:
+            docs = self.text_split(documents)
+            vectordb = Chroma.from_documents(
+                docs,
+                embedding=self.embedding_model,
+                persist_directory=persist_directory
+            )
+            vectordb.persist()
+            embedding_logger.info(f"Documents embedded and stored at {persist_directory}")
+            return vectordb
+        except Exception as e:
+            embedding_logger.error(f"Error during embedding or storing documents: {e}")
+            print(f"Error during embedding or storing documents: {e}")
+    
+    def load_vectorstore(self, persist_directory: str) -> Chroma:
+        """
+        Loads an existing Chroma vector store from the specified directory.
+        """
+        return Chroma(
+            persist_directory=persist_directory,
+            embedding_function=self.embedding_model
+        )
