@@ -22,7 +22,7 @@ class EmbeddingHandler:
         )
         return text_splitter.split_documents(documents)
     
-    def embed_documents(self, documents: List[Document], persist_directory: str) -> Chroma:
+    def embed_documents(self, documents: List[Document], persist_directory = None) -> Chroma:
         """
         Embeds documents and stores them in a Chroma vector store.
         """
