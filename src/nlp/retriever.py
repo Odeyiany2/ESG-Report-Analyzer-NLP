@@ -2,6 +2,7 @@ import os
 import yaml
 from typing import List, Dict
 from dotenv import load_dotenv
+from textwrap import dedent
 from openai import OpenAI
 from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import retriever_logger
@@ -34,6 +35,7 @@ class Retriever:
             retriever_logger.error(f"Error loading vector stores: {e}")
             print(f"Error loading vector stores: {e}")
     
+    #load the prompts from a yaml file
     def load_prompts(self, prompts_file: str) -> Dict[str, str]:
         """
         Load prompts from a YAML file.
@@ -47,7 +49,64 @@ class Retriever:
             retriever_logger.error(f"Error loading prompts from {prompts_file}: {e}")
             print(f"Error loading prompts from {prompts_file}: {e}")
             return {}
+    #build the prompt by filling in the template with the query and context
+    def build_prompt(self, query: str, context: Dict[str, List[str]], prompt_data:dict) -> str:
+        """
+        Build the prompt by filling in the template with the query and context.
+        """
+        # merge all context sections into a single string
+        try:
+            prompt = dedent(f"""
+                            {prompt_data.get("persona", "")}
+                            Context Sections:
+                            {prompt_data.get("context_instructions", "")}
+
+                            Standards Context:
+                            {" \n".join(context.get("standards", []))}
+
+                            Reports Context:
+                            {" \n".join(context.get("reports", []))}
+
+                            Task Instructions:
+                            {prompt_data.get("task_instructions", "")}
+                            
+                            Response Format:
+                            {prompt_data.get("response_format", "")}
+                          
+                            Stule Guidelines:
+                            {prompt_data.get("style_guidelines", "")}
+
+                            Examples:
+                            {prompt_data.get("examples", "")}
+
+                            User Query:
+                            {query}
+                            """)
+            retriever_logger.info("Prompt built successfully.")
+            return prompt
+        except Exception as e:
+            retriever_logger.error(f"Error building prompt: {e}")
+            print(f"Error building prompt: {e}")
+            return ""
     
+    #retrieve relevant context from the vector stores based on the user query
+    def retrieve_context(self, query:str, k:int = 3) -> Dict[str, List[str]]:
+        """
+        Retrieve relevant context from the vector stores based on the user query."""
 
-
+        if not self.standards_vectorstore or not self.reports_vectorstore:
+            retriever_logger.error("Vector stores not loaded. Please load them before retrieving context.")
+            print("Vector stores not loaded. Please load them before retrieving context.")
+            raise ValueError("Vector stores not loaded. Please load them before retrieving context.")
+        
+        retriever_logger.info("Retrieving relevant ESG sections from vector stores...")
+        standards_docs = self.standards_vectorstore.similarity_search(query, k=k)
+        reports_docs = self.reports_vectorstore.similarity_search(query, k=k)
+        return {
+            "standards": [doc.page_content for doc in standards_docs],
+            "reports": [doc.page_content for doc in reports_docs]
+        }
+    
+    #compare report content against standards using the fully constructed prompt and the llm 
+    def compare_content(self):
         
