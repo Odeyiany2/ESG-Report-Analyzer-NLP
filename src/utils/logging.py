@@ -67,7 +67,7 @@ folder_name = "ESG_logs"
 log_files_to_create = [
     "doc_handler.log",
     "embedding.log",
-    "fastapi_logic.log",
+    "api_logic.log",
     "streamlit_app.log",
     "retriever.log"]
 
@@ -85,9 +85,9 @@ embedding_logger = setup_logger(
     "embedding_logger",
     os.path.join(cwd, folder_name, "embedding.log")
 )
-fastapi_logic_logger = setup_logger(
-    "fastapi_logic_logger",
-    os.path.join(cwd, folder_name, "fastapi_logic.log")
+api_logger = setup_logger(
+    "api_logger",
+    os.path.join(cwd, folder_name, "api_logic.log")
 )
 streamlit_app_logger = setup_logger(
     "streamlit_app_logger",
