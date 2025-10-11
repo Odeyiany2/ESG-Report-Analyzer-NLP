@@ -12,8 +12,7 @@ load_dotenv() #load environment variables from .env file
 #set up the llm client 
 gpt_client = OpenAI(
     base_url= "https://router.huggingface.co/v1",
-    api_key=os.getenv("HUGGINGFACE_API_KEY"),
-    model = "openai/gpt-oss-120b:fireworks-ai"
+    api_key=os.getenv("HUGGINGFACE_API_KEY")
 )
 
 #retrieval and comparison class
@@ -108,5 +107,28 @@ class Retriever:
         }
     
     #compare report content against standards using the fully constructed prompt and the llm 
-    def compare_content(self):
+    def compare_content(self, query: str, context: dict, prompt_path: str) -> str:
+        """
+        Compare report content against standards using the fully constructed prompt and the llm. 
+        """
+        try:
+            prompts = self.load_prompts(prompt_path)
+            full_prompt = self.build_prompt(query, context, prompts)
+            retriever_logger.info("Sending prompt to LLM for ESG analysis...")
+
+            response = self.llm.chat.completions.create(
+                model = "openai/gpt-oss-120b:fireworks-ai",
+                messages= [
+                    {"role": "user", "content": full_prompt},
+                    {"role": "system", "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."}
+                ],
+                temperature=0.2,
+                max_tokens=2000,
+            )
+            retriever_logger.info("Received response from LLM.")
+            return response.choices[0].message.content
+        except Exception as e:
+            retriever_logger.error(f"Error during content comparison: {e}")
+            print(f"Error during content comparison: {e}")
+            return "An error occurred when trying to analyze the ESG report. Please try again."
         
