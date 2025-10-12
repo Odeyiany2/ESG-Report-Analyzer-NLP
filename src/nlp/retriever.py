@@ -69,7 +69,7 @@ class Retriever:
                             Standards Context:
                             {" \n".join(context.get("standards", []))}
 
-                            Reports Context:
+                            Reports Context (with ESG classifications):
                             {" \n".join(context.get("reports", []))}
 
                             Task Instructions:
@@ -144,14 +144,18 @@ class Retriever:
         return enriched_sections
     
     #compare report content against standards using the fully constructed prompt and the llm 
-    def compare_content(self, query: str, context: dict, prompt_path: str) -> str:
+    def compare_content(self, query: str, prompt_path: str) -> str:
         """
         Compare report content against standards using the fully constructed prompt and the llm. 
         """
         try:
+            contexts = self.retrieve_context(query)
+            enriched_reports = self.enrich_context_with_esg(contexts["reports"])
+            contexts["reports"] = enriched_reports
+
             prompts = self.load_prompts(prompt_path)
-            full_prompt = self.build_prompt(query, context, prompts)
-            retriever_logger.info("Sending prompt to LLM for ESG analysis...")
+            full_prompt = self.build_prompt(query, contexts, prompts)
+            retriever_logger.info("Sending enriched prompt to LLM for ESG analysis...")
 
             response = self.llm.chat.completions.create(
                 model = "openai/gpt-oss-120b:fireworks-ai",
