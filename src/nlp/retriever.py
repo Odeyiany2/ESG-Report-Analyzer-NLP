@@ -16,6 +16,11 @@ gpt_client = OpenAI(
     api_key=os.getenv("HUGGINGFACE_API_KEY")
 )
 
+#set up the tokenizer and model for text classification
+finbert = BertForSequenceClassification.from_pretrained("yiyanghkust/finbert-esg", num_labels=4)
+tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-esg")
+nlp_classifier = pipeline("text-classification", model = finbert, tokenizer = tokenizer)
+
 #retrieval and comparison class
 class Retriever:
     def __init__(self, embedding_handler: EmbeddingHandler, llm_client = gpt_client):
