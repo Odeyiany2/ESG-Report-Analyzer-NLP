@@ -4,6 +4,7 @@ from typing import List, Dict
 from dotenv import load_dotenv
 from textwrap import dedent
 from openai import OpenAI
+from transformers import BertTokenizer, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import retriever_logger
 
