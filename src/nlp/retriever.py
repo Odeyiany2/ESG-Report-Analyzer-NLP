@@ -16,7 +16,7 @@ gpt_client = OpenAI(
     api_key=os.getenv("HUGGINGFACE_API_KEY")
 )
 
-#set up the tokenizer and model for text classification
+#set up the tokenizer and model for esg classification
 finbert = BertForSequenceClassification.from_pretrained("yiyanghkust/finbert-esg", num_labels=4)
 tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-esg")
 nlp_classifier = pipeline("text-classification", model = finbert, tokenizer = tokenizer)
@@ -111,6 +111,37 @@ class Retriever:
             "standards": [doc.page_content for doc in standards_docs],
             "reports": [doc.page_content for doc in reports_docs]
         }
+    
+    #classify the ESG aspects of the report content using the finbert model
+    def classify_esg(self, text:str)-> List[Dict]:
+        """
+        Classify the ESG aspects of the report content using the finbert model.
+        """
+        try:
+            results = nlp_classifier(text)
+            retriever_logger.info("ESG classification completed.")
+            return results
+        except Exception as e:
+            retriever_logger.error(f"Error during ESG classification: {e}")
+            print(f"Error during ESG classification: {e}")
+            return [{"label": "ERROR", "score": 0.0}]
+    
+    #enrich context with ESG classifications
+    def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
+        """
+        Enrich context with ESG classifications. 
+        """
+        enriched_sections = []
+        for text in report_sections:
+            classification = self.classify_esg(text)
+            label = classification[0]["label"] if classification else "UNKNOWN"
+            score = round(classification[0]["score"], 3) if classification else 0.0
+            enriched_sections.append({
+                "text": text,
+                "esg_label": label,
+                "confidence": score
+            })
+        return enriched_sections
     
     #compare report content against standards using the fully constructed prompt and the llm 
     def compare_content(self, query: str, context: dict, prompt_path: str) -> str:
