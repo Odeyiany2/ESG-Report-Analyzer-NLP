@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import PlainTextResponse, JSONResponse
 from typing import List, Dict
 from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
@@ -7,6 +8,8 @@ from src.utils.logging import api_logger
 from langchain_core.documents import Document
 
 app = FastAPI()
+
+user_uploaded_report = {}
 
 
 @app.get("/health")
@@ -17,8 +20,11 @@ async def health_check():
     return {"status": "ok", "message": "API is running smoothly."}
 
 @app.post("/upload")
-async def upload_documents():
-    pass
+async def upload_documents(files: List[UploadFile] = File(...)):
+    """
+    Endpoint to handle user uploaded ESG reports for analysis
+    """
+    try:
 
 @app.post("/query")
 async def query_assistant():
