@@ -4,8 +4,10 @@ from typing import List, Dict
 from dotenv import load_dotenv
 from textwrap import dedent
 from openai import OpenAI
+from langchain_core.documents import Document
 from transformers import BertTokenizer, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
+from src.nlp.doc_handler import DocumentHandler
 from src.utils.logging import retriever_logger
 
 load_dotenv() #load environment variables from .env file
@@ -30,12 +32,21 @@ class Retriever:
         self.reports_vectorstore = None
     
     #load the vector store for standards and the user uploaded reports
-    def load_vector_store(self, standards_path:str, reports_path:str):
-        retriever_logger.info("Loading vector stores for standards and reports...")
+    def create_vector_store(self, standards_vector_path:str, 
+                            standard_docs: List[Document],
+                            uploaded_report: List[Document], reports_vector_path:str):
+        retriever_logger.info("Creating vector stores for standards and reports uploaded...")
         try:
-            self.standards_vectorstore = self.embed.load_vectorstore(standards_path)
-            self.reports_vectorstore = self.embed.load_vectorstore(reports_path)
-            retriever_logger.info("Vector stores loaded successfully.")
+            #check if the vector stores already exist, if not create them
+            if not os.path.exists(standards_vector_path) or not os.path.exists(reports_vector_path):
+                retriever_logger.info("Vector stores not found, creating new ones...")
+                self.reports_vectorstore = self.embed.embed_documents(uploaded_report, persist_directory=reports_vector_path)
+                self.standards_vectorstore = self.embed.embed_documents(standard_docs, persist_directory=standards_vector_path)
+            else:
+                retriever_logger.info("Loading existing vector stores...")
+                self.reports_vectorstore = self.embed.load_vectorstore(persist_directory=reports_vector_path)
+                self.standards_vectorstore = self.embed.load_vectorstore(persist_directory=standards_vector_path)
+            retriever_logger.info("Vector stores are ready for use.")
         except Exception as e:
             retriever_logger.error(f"Error loading vector stores: {e}")
             print(f"Error loading vector stores: {e}")
