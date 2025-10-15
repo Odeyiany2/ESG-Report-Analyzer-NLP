@@ -61,6 +61,7 @@ async def upload_documents(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=500, detail="Error processing uploaded documents.")
 
 
+
 @app.post("/query")
 async def query_assistant(request:Request):
     """
@@ -85,11 +86,13 @@ async def query_assistant(request:Request):
         retriever = Retriever(embedding_handler=EmbeddingHandler())
 
         #create vector stores for standards and uploaded reports
+        standard_path = r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\standards"
+        reports_path = r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\uploaded_reports"
         retriever.create_vector_store(
-            standards_vector_path="data/vectorstores/standards",
+            standards_vector_path=standard_path,
             standard_docs=standard_documents,
             uploaded_report=uploaded_reports,
-            reports_vector_path=f"data/vectorstores/reports/{session_id}"
+            reports_vector_path= os.path.join(reports_path, f"{session_id}")
         )
 
         #use the retriever to get the response from the assistant

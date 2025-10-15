@@ -40,6 +40,8 @@ class Retriever:
             #check if the vector stores already exist, if not create them
             if not os.path.exists(standards_vector_path) or not os.path.exists(reports_vector_path):
                 retriever_logger.info("Vector stores not found, creating new ones...")
+                os.makedirs(standards_vector_path, exist_ok=True)
+                os.makedirs(reports_vector_path, exist_ok=True)
                 self.reports_vectorstore = self.embed.embed_documents(uploaded_report, persist_directory=reports_vector_path)
                 self.standards_vectorstore = self.embed.embed_documents(standard_docs, persist_directory=standards_vector_path)
             else:
