@@ -2,7 +2,7 @@ import uuid
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from typing import List, Dict
 from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
