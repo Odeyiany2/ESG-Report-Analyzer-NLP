@@ -120,7 +120,3 @@ async def query_assistant(request:Request):
 @app.post("/predict_esg_score")
 async def predict_esg_score(request: Request):
     pass
-
-# @app.post("/forecast_esg_trends")
-# async def forecast_esg_trends():
-#     pass
