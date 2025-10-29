@@ -69,6 +69,7 @@ log_files_to_create = [
     "embedding.log",
     "api_logic.log",
     "streamlit_app.log",
+    "esg_agents.log"
     "retriever.log"]
 
 # Create the folder and log files
@@ -92,6 +93,10 @@ api_logger = setup_logger(
 streamlit_app_logger = setup_logger(
     "streamlit_app_logger",
     os.path.join(cwd, folder_name, "streamlit_app.log")
+)
+esg_agents_logger = setup_logger(
+    "esg_agents_logger",
+    os.path.join(cwd, folder_name, "esg_agents.log")
 )
 retriever_logger = setup_logger(
     "retriever_logger",
