@@ -7,7 +7,6 @@ from openai import OpenAI
 from langchain_core.documents import Document
 from transformers import BertTokenizer, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
-from src.nlp.doc_handler import DocumentHandler
 from src.utils.logging import retriever_logger
 
 load_dotenv() #load environment variables from .env file

@@ -8,7 +8,7 @@ from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
 from src.nlp.retriever import Retriever
 from src.utils.logging import api_logger
-from langchain_core.documents import Document
+
 
 #load environment variables from .env file
 load_dotenv()
