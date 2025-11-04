@@ -69,7 +69,8 @@ log_files_to_create = [
     "embedding.log",
     "api_logic.log",
     "streamlit_app.log",
-    "esg_agents.log"
+    "esg_agents.log",
+    "regression_model.log"
     "retriever.log"]
 
 # Create the folder and log files
@@ -98,6 +99,12 @@ esg_agents_logger = setup_logger(
     "esg_agents_logger",
     os.path.join(cwd, folder_name, "esg_agents.log")
 )
+
+regression_logger = setup_logger(
+    "regression_logger",
+    os.path.join(cwd, folder_name, "regression_model.log")
+)
+
 retriever_logger = setup_logger(
     "retriever_logger",
     os.path.join(cwd, folder_name, "retriever.log")

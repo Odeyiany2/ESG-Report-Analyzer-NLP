@@ -117,10 +117,10 @@ async def query_assistant(request:Request):
 
 
 
-@app.post("/predict_esg_score")
-async def predict_esg_score(request: Request):
-    pass
+# @app.post("/predict_esg_score")
+# async def predict_esg_score(request: Request):
+#     pass
 
-@app.post("/analyze_esg")
-async def analyze_esg(request: Request):
-    pass
+# @app.post("/analyze_esg")
+# async def analyze_esg(request: Request):
+#     pass
