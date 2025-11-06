@@ -22,11 +22,26 @@ class ESGstate(BaseModel):
 def retrieve_node(state):
     query = state.query
     esg_agents_logger.info(f"Retrieving documents for query: {query}")
+    response = retriever.retrieve_context(query)
+    if not response:
+        esg_agents_logger.error("No relevant documents found for the given query.")
+        raise ValueError("No relevant documents found for the given query.")
+    state.retrieved_docs = response
+    return state
 
 
 #classify ESG aspects node
 def classify_node(state):
-    pass
+    if not state.retrieved_docs:
+        esg_agents_logger.error("No documents retrieved to classify.")
+        raise ValueError("No documents retrieved to classify.")
+    report_sections = state.retrieved_docs.get("reports", [])
+    enriched_reports = retriever.enrich_context_with_esg(report_sections)
+    if enriched_reports is None:
+        esg_agents_logger.error("Failed to enrich report sections with ESG classifications.")
+        raise ValueError("Failed to enrich report sections with ESG classifications.")
+    state.classification = enriched_reports
+    return state
 
 #ESG scores node 
 def predict_node(state):
