@@ -138,6 +138,10 @@ class Retriever:
             print(f"Error during ESG classification: {e}")
             return [{"label": "ERROR", "score": 0.0}]
     
+    #explainability layer
+    def explain_classification(self, text:str, classification:Dict) -> str:
+        pass
+    
     #enrich context with ESG classifications
     def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
         """
