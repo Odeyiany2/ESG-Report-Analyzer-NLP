@@ -140,7 +140,7 @@ class Retriever:
     
     #explainability layer
     def explain_classification(self, text:str, classification:Dict) -> str:
-        pass
+        """Provide explanations for the ESG classification results."""
     
     #enrich context with ESG classifications
     def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
