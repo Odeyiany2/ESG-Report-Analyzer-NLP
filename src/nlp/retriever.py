@@ -142,7 +142,12 @@ class Retriever:
     def explain_classification(self, text:str, classification:Dict) -> str:
         """Provide explanations for the ESG classification results by showing the most influential tokens."""
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        outputs = finbert(**inputs)
+        outputs = finbert(**inputs, output_attentions=True)
+        attentions = outputs.attentions[-1].mean(dim =1)
+        top_token = [tokenizer.decode(inputs['input_ids'][0][i]) for i in attentions[0].topk(5).indices]
+        explanation = f"The classification '{classification['label']}' with confidence {classification['score']:.3f} is influenced by tokens: {', '.join(top_token)}"
+        return explanation
+
 
     
     #enrich context with ESG classifications
