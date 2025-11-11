@@ -147,25 +147,31 @@ class Retriever:
         top_token = [tokenizer.decode(inputs['input_ids'][0][i]) for i in attentions[0].topk(5).indices]
         explanation = f"The classification '{classification['label']}' with confidence {classification['score']:.3f} is influenced by tokens: {', '.join(top_token)}"
         return explanation
-
-
     
     #enrich context with ESG classifications
     def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
         """
         Enrich context with ESG classifications. 
         """
-        enriched_sections = []
-        for text in report_sections:
-            classification = self.classify_esg(text)
-            label = classification[0]["label"] if classification else "UNKNOWN"
-            score = round(classification[0]["score"], 3) if classification else 0.0
-            enriched_sections.append({
-                "text": text,
-                "esg_label": label,
-                "confidence": score
-            })
-        return enriched_sections
+        try:
+            retriever_logger.info("Enriching report sections with ESG classifications...")
+            enriched_sections = []
+            for text in report_sections:
+                classification = self.classify_esg(text)
+                label = classification[0]["label"] if classification else "UNKNOWN"
+                score = round(classification[0]["score"], 3) if classification else 0.0
+                token = self.explain_classification(text)
+                enriched_sections.append({
+                    "text": text,
+                    "esg_label": label,
+                    "confidence": score, 
+                    "important_tokens": token
+                })
+            return enriched_sections
+        except Exception as e:
+            retriever_logger.error(f"Error during context enrichment: {e}")
+            print(f"Error during context enrichment: {e}")
+            #return [{"text": text, "esg_label": "ERROR", "confidence": 0.0} for text in report_sections]
     
     #compare report content against standards using the fully constructed prompt and the llm 
     def compare_content(self, query: str, prompt_path: str) -> str:
