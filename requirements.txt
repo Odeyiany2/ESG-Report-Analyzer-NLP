@@ -42,8 +42,12 @@ jupyter_core==5.9.1
 kiwisolver==1.4.9
 langchain==0.3.27
 langchain-community==0.3.30
-langchain-core==0.3.76
+langchain-core==1.0.3
 langchain-text-splitters==0.3.11
+langgraph==1.0.2
+langgraph-checkpoint==3.0.0
+langgraph-prebuilt==1.0.2
+langgraph-sdk==0.2.9
 langsmith==0.4.31
 lightgbm==4.6.0
 marshmallow==3.26.1
@@ -56,6 +60,7 @@ nest-asyncio==1.6.0
 numpy==2.3.3
 openai==2.3.0
 orjson==3.11.3
+ormsgpack==1.12.0
 packaging==25.0
 pandas==2.3.3
 parso==0.8.5
@@ -102,5 +107,6 @@ tzdata==2025.2
 urllib3==2.5.0
 wcwidth==0.2.14
 xgboost==3.1.1
+xxhash==3.6.0
 yarl==1.20.1
 zstandard==0.25.0
