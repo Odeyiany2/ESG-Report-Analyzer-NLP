@@ -160,7 +160,7 @@ class Retriever:
                 classification = self.classify_esg(text)
                 label = classification[0]["label"] if classification else "UNKNOWN"
                 score = round(classification[0]["score"], 3) if classification else 0.0
-                token = self.explain_classification(text)
+                token = self.explain_classification(text, classification[0]) if classification else "No explanation available."
                 enriched_sections.append({
                     "text": text,
                     "esg_label": label,

@@ -14,39 +14,82 @@ class ESGstate(BaseModel):
     query: str
     retrieved_docs: Optional[Dict[str, List]] = None
     classification: Optional[Dict[str, Any]] = None
-    scores: Optional[Dict[str, float]] = None
+    #scores: Optional[Dict[str, float]] = None
     response: Optional[str] = None
     messages: Annotated[list[dict], add_messages]
 
-#retrieve ESG report node
-def retrieve_node(state):
-    query = state.query
-    esg_agents_logger.info(f"Retrieving documents for query: {query}")
-    response = retriever.retrieve_context(query)
-    if not response:
-        esg_agents_logger.error("No relevant documents found for the given query.")
-        raise ValueError("No relevant documents found for the given query.")
-    state.retrieved_docs = response
-    return state
+    #retrieve ESG report node
+    def retrieve_node(state):
+        query = state.query
+        esg_agents_logger.info(f"Retrieving documents for query: {query}")
+        response = retriever.retrieve_context(query)
+        if not response:
+            esg_agents_logger.error("No relevant documents found for the given query.")
+            raise ValueError("No relevant documents found for the given query.")
+        state.retrieved_docs = response
+        return state
 
 
-#classify ESG aspects node
-def classify_node(state):
-    if not state.retrieved_docs:
-        esg_agents_logger.error("No documents retrieved to classify.")
-        raise ValueError("No documents retrieved to classify.")
-    report_sections = state.retrieved_docs.get("reports", [])
-    enriched_reports = retriever.enrich_context_with_esg(report_sections)
-    if enriched_reports is None:
-        esg_agents_logger.error("Failed to enrich report sections with ESG classifications.")
-        raise ValueError("Failed to enrich report sections with ESG classifications.")
-    state.classification = enriched_reports
-    return state
+    #classify ESG aspects node
+    def classify_node(state):
+        if not state.retrieved_docs:
+            esg_agents_logger.error("No documents retrieved to classify.")
+            raise ValueError("No documents retrieved to classify.")
+        report_sections = state.retrieved_docs.get("reports", [])
+        enriched_reports = retriever.enrich_context_with_esg(report_sections)
+        if enriched_reports is None:
+            esg_agents_logger.error("Failed to enrich report sections with ESG classifications.")
+            raise ValueError("Failed to enrich report sections with ESG classifications.")
+        state.classification = enriched_reports
+        return state
 
-#ESG scores node 
-def predict_node(state):
-    pass
+    # #ESG scores node 
+    # def predict_node(state):
+    #     pass
 
-#summarize ESG findings node
-def summarize_node(state):
-    pass
+    #summarize ESG findings node
+    def summarize_node(state):
+        pass
+
+
+
+def build_esg_agent_graph() -> StateGraph:
+    graph = StateGraph(ESGstate)
+
+    # Define nodes
+    retrieve_tool = ToolNode(
+        name="Retrieve ESG Reports",
+        func=ESGstate.retrieve_node,
+        description="Retrieves relevant ESG reports based on the user's query."
+    )
+
+    classify_tool = ToolNode(
+        name="Classify ESG Aspects",
+        func=ESGstate.classify_node,
+        description="Classifies sections of the retrieved ESG reports into E, S, and G categories."
+    )
+
+    # predict_tool = ToolNode(
+    #     name="Predict ESG Scores",
+    #     func=ESGstate.predict_node,
+    #     description="Predicts ESG scores based on classified report sections."
+    # )
+
+    summarize_tool = ToolNode(
+        name="Summarize ESG Findings",
+        func=ESGstate.summarize_node,
+        description="Summarizes the ESG findings from the classified report sections."
+    )
+
+    # Add nodes to graph
+    graph.add_node(retrieve_tool, START)
+    graph.add_node(classify_tool, tools_condition(START))
+    # graph.add_node(predict_tool, tools_condition(classify_tool))
+    graph.add_node(summarize_tool, tools_condition(classify_tool))
+    graph.add_node(END, tools_condition(summarize_tool))
+
+    # Add memory saver checkpoint
+    memory_saver = MemorySaver(ESGstate)
+    graph.add_checkpoint(memory_saver)
+
+    return graph.compile()
