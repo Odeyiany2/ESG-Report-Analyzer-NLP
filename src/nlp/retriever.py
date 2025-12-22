@@ -173,33 +173,55 @@ class Retriever:
             print(f"Error during context enrichment: {e}")
             #return [{"text": text, "esg_label": "ERROR", "confidence": 0.0} for text in report_sections]
     
-    #compare report content against standards using the fully constructed prompt and the llm 
-    def compare_content(self, query: str, prompt_path: str) -> str:
+    def run_analysis(self, prompt:str) -> str:
         """
-        Compare report content against standards using the fully constructed prompt and the llm. 
+        Run the ESG analysis by sending the constructed prompt to the LLM.
         """
         try:
-            contexts = self.retrieve_context(query)
-            enriched_reports = self.enrich_context_with_esg(contexts["reports"])
-            contexts["reports"] = enriched_reports
-
-            prompts = self.load_prompts(prompt_path)
-            full_prompt = self.build_prompt(query, contexts, prompts)
-            retriever_logger.info("Sending enriched prompt to LLM for ESG analysis...")
-
+            retriever_logger.info("Sending prompt to LLM for ESG analysis...")
             response = self.llm.chat.completions.create(
                 model = "openai/gpt-oss-120b:fireworks-ai",
                 messages= [
-                    {"role": "user", "content": full_prompt},
+                    {"role": "user", "content": prompt},
                     {"role": "system", "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."}
                 ],
-                temperature=0.2,
+                temperature=0.1,
                 max_tokens=2000,
             )
             retriever_logger.info("Received response from LLM.")
             return response.choices[0].message.content
         except Exception as e:
-            retriever_logger.error(f"Error during content comparison: {e}")
-            print(f"Error during content comparison: {e}")
+            retriever_logger.error(f"Error during ESG analysis: {e}")
+            print(f"Error during ESG analysis: {e}")
             return "An error occurred when trying to analyze the ESG report. Please try again."
+        
+    # #compare report content against standards using the fully constructed prompt and the llm 
+    # def compare_content(self, query: str, prompt_path: str) -> str:
+    #     """
+    #     Compare report content against standards using the fully constructed prompt and the llm. 
+    #     """
+    #     try:
+    #         contexts = self.retrieve_context(query)
+    #         enriched_reports = self.enrich_context_with_esg(contexts["reports"])
+    #         contexts["reports"] = enriched_reports
+
+    #         prompts = self.load_prompts(prompt_path)
+    #         full_prompt = self.build_prompt(query, contexts, prompts)
+    #         retriever_logger.info("Sending enriched prompt to LLM for ESG analysis...")
+
+    #         response = self.llm.chat.completions.create(
+    #             model = "openai/gpt-oss-120b:fireworks-ai",
+    #             messages= [
+    #                 {"role": "user", "content": full_prompt},
+    #                 {"role": "system", "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."}
+    #             ],
+    #             temperature=0.2,
+    #             max_tokens=2000,
+    #         )
+    #         retriever_logger.info("Received response from LLM.")
+    #         return response.choices[0].message.content
+    #     except Exception as e:
+    #         retriever_logger.error(f"Error during content comparison: {e}")
+    #         print(f"Error during content comparison: {e}")
+    #         return "An error occurred when trying to analyze the ESG report. Please try again."
         

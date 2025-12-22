@@ -49,9 +49,28 @@ class ESGstate(BaseModel):
 
     #summarize ESG findings node
     def summarize_node(state):
-        pass
+        if not state.retrieved_docs or not state.classification:
+            esg_agents_logger.error("Insufficient data to summarize ESG findings.")
+            raise ValueError("Insufficient data to summarize ESG findings.")
+        esg_agents_logger.info("Summarizing ESG findings...")
 
+        context = {
+            "standards": state.retrieved_docs.get("standards", []),
+            "reports": state.classification,
+        }
 
+        prompt = retriever.load_prompts(r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\src\nlp\prompt_esg.yml")
+
+        full_prompt = retriever.build_prompt(
+            query=state.query,
+            context=context,
+            prompt_data = prompt 
+        )
+
+        response = retriever.run_analysis(full_prompt)
+        state.response = response
+
+        return state
 
 def build_esg_agent_graph() -> StateGraph:
     graph = StateGraph(ESGstate)
