@@ -1,5 +1,6 @@
 from src.utils.logging import esg_agents_logger
 from src.nlp.retriever import Retriever
+from src.nlp.embeddings import EmbeddingHandler
 from langgraph.graph import StateGraph, END, START
 from langgraph.prebuilt import tools_condition, ToolNode
 from langgraph.graph.message import add_messages
@@ -7,11 +8,12 @@ from langgraph.checkpoint.memory import MemorySaver
 from typing import Annotated, Any, Optional, Dict, List
 from pydantic import BaseModel, Field
 
-retriever = Retriever()
+retriever = Retriever(embedding_handler= EmbeddingHandler)
 
 #define the agent state
 class ESGstate(BaseModel):
     query: str
+    reports_ready: bool = False
     retrieved_docs: Optional[Dict[str, List]] = None
     classification: Optional[Dict[str, Any]] = None
     #scores: Optional[Dict[str, float]] = None
@@ -20,6 +22,8 @@ class ESGstate(BaseModel):
 
     #retrieve ESG report node
     def retrieve_node(state):
+        if not state.reports_ready:
+            raise ValueError("Reports not uploaded or indexed.")
         query = state.query
         esg_agents_logger.info(f"Retrieving documents for query: {query}")
         response = retriever.retrieve_context(query)

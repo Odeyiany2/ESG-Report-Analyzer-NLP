@@ -1,49 +1,59 @@
 import streamlit as st
 from src.agentic_ai.orchestrator import ESGstate, build_esg_agent_graph
 from src.nlp.doc_handler import DocumentHandler
-from src.nlp.embeddings import EmbeddingHandler
 from src.nlp.retriever import Retriever
+from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import streamlit_app_logger
 
 
 st.title("ESG Report Analyzer NLP")
 
 st.markdown("""
-This application allows you to analyze ESG reports using an AI-powered agent.""")
+This interface is for testing the ESG Report Analyzer NLP functionalities
+""")
 
-@st.cache_resource
-def initialize_esg_agent():
-    embedding_handler = EmbeddingHandler()
-    document_handler = DocumentHandler(embedding_handler=embedding_handler)
-    esg_state = ESGstate(document_handler=document_handler)
-    esg_agent = build_esg_agent_graph(esg_state)
-    return esg_agent
+state = ESGstate(
+    query="",
+    messages=[]
+)
 
-esg_agent = initialize_esg_agent()
+embed = EmbeddingHandler()
 
-uploaded_files = st.file_uploader("Upload ESG Reports", accept_multiple_files=True, type=["pdf", "docx", "txt"])
-if uploaded_files:
-    try:
-        docs = esg_agent.document_handler.load_uploaded_documents(uploaded_files)
-        if not docs:
-            streamlit_app_logger.error("No valid documents were uploaded.")
-            st.error("No valid documents were uploaded.")
-        else:
-            streamlit_app_logger.info(f"Successfully processed {len(docs)} documents from upload.")
-            st.success(f"Successfully uploaded and processed {len(docs)} documents.")
-    except Exception as e:
-        streamlit_app_logger.error(f"Error processing uploaded documents: {e}")
-        st.error("Error processing uploaded documents.")
+retriever = Retriever(embedding_handler=embed)
 
-query = st.text_input("Enter your query about the uploaded ESG reports:")
-if query:
-    try:
-        #using the agent to process and retrieve structured information from the report based on the query
-        state = esg_agent.run(initial_state=esg_agent.state_class(query=query))
+
+#load the standards document 
+standard_path = r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\data\raw\standards"
+
+standard_documents = DocumentHandler().load_standard_documents(standard_docs_dir=standard_path)
+
+## Input section 
+files = st.file_uploader("Upload ESG Reports", accept_multiple_files=True)
+
+if files:
+    docs = DocumentHandler().load_uploaded_documents(files)
+    st.success(f"Loaded {len(docs)} documents from upload.")
+ 
+    retriever.create_vector_store(
+        standards_vector_path=r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\standards",
+        standard_docs=standard_documents,
+        uploaded_report=docs,
+        reports_vector_path=r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\test_uploaded_reports"
+    )
+
+    state.reports_ready = True
+
+
+if state.reports_ready:
+    query = st.text_input("Enter your ESG query:", value="What are the environmental policies of the company?")
+    if query:
+        state.query = query
+        graph = build_esg_agent_graph()
     
-
+    if st.button("Analyze"):
+        with st.spinner("Analyzing ESG reports..."):
+            result = graph.invoke(state)
         
 
-    except Exception as e:
-        streamlit_app_logger.error(f"Error processing query: {e}")
-        st.error("Error processing query.")
+    st.subheader("### ESG Analysis Result")
+    st.write(state.response)
