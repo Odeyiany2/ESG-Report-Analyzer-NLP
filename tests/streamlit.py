@@ -17,42 +17,66 @@ state = ESGstate(
     messages=[]
 )
 
-embed = EmbeddingHandler()
+@st.cache_resource
+def init_retriever() -> Retriever:
+   embed = EmbeddingHandler()
+   retriever = Retriever(embedding_handler=embed)
 
-retriever = Retriever(embedding_handler=embed)
+retriever = init_retriever()
+graph = build_esg_agent_graph()
 
 
-#load the standards document 
-standard_path = r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\data\raw\standards"
 
-standard_documents = DocumentHandler().load_standard_documents(standard_docs_dir=standard_path)
+@st.cache_resource
+def load_standard_doc():
+    #load the standards document 
+    path = r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\data\raw\standards"
+
+    return DocumentHandler().load_standard_documents(standard_docs_dir=path)
+
+standard_docs = load_standard_doc()
 
 ## Input section 
 files = st.file_uploader("Upload ESG Reports", accept_multiple_files=True)
 
+reports_ready = False
+
 if files:
     docs = DocumentHandler().load_uploaded_documents(files)
-    st.success(f"Loaded {len(docs)} documents from upload.")
- 
-    retriever.create_vector_store(
-        standards_vector_path=r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\standards",
-        standard_docs=standard_documents,
-        uploaded_report=docs,
-        reports_vector_path=r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\vectorstores\test_uploaded_reports"
+    st.success(f"{len(docs)} ESG report(s) loaded")
+
+    if st.button("📥 Index Documents"):
+        with st.spinner("Creating vector stores..."):
+            retriever.create_vector_store(
+                standards_vector_path=r"...\vectorstores\standards",
+                standard_docs=standard_docs,
+                uploaded_report=docs,
+                reports_vector_path=r"...\vectorstores\uploaded_reports"
+            )
+
+        reports_ready = True
+        st.success("Vector stores created successfully")
+
+st.subheader("2️⃣ Ask an ESG Question")
+
+query = st.text_input(
+    "Enter your ESG query",
+    value="What environmental policies has the company implemented?"
+)
+
+
+if st.button("🚀 Run ESG Agent"):
+
+    if not reports_ready:
+        st.error("Please upload and index reports first.")
+        st.stop()
+
+    state = ESGstate(
+        query=query,
+        reports_ready=True
     )
 
-    state.reports_ready = True
+    with st.spinner("Running ESG analysis pipeline..."):
+        final_state = graph.invoke(state)
 
-
-if state.reports_ready:
-    query = st.text_input("Enter your ESG query:", value="What are the environmental policies of the company?")
-    if query:
-        state.query = query
-
-graph = build_esg_agent_graph()
-
-if st.button("Analyze"):
- with st.spinner("Analyzing ESG reports..."):
-    state = graph.invoke(state)
-    st.subheader("### ESG Analysis Result")
-    st.write(state.response)
+    st.success("Analysis complete!")
