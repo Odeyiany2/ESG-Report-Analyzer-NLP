@@ -48,12 +48,11 @@ if state.reports_ready:
     query = st.text_input("Enter your ESG query:", value="What are the environmental policies of the company?")
     if query:
         state.query = query
-        graph = build_esg_agent_graph()
-    
-    if st.button("Analyze"):
-        with st.spinner("Analyzing ESG reports..."):
-            result = graph.invoke(state)
-        
 
+graph = build_esg_agent_graph()
+
+if st.button("Analyze"):
+ with st.spinner("Analyzing ESG reports..."):
+    state = graph.invoke(state)
     st.subheader("### ESG Analysis Result")
     st.write(state.response)
