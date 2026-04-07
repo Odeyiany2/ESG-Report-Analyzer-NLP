@@ -3,11 +3,10 @@
 
 This project combines AI + Accounting to help companies assess and improve their Environmental, Social, and Governance (ESG) disclosures.
 
-This MVP has tow main layers:
+This MVP has one main layer:
 
  - Chatbot ESG Report Analyzer (RAG) → Companies upload their sustainability reports, and a chatbot analyzes coverage against standards (GRI, SASB, IFRS) to detect vagueness, compliance gaps, and missing sections.
 
- - ESG Score Predictor & Forecasting → Machine learning models predict ESG category scores (Environmental, Social, Governance) and forecast future ESG trends based on company features.
 
 ## **🚀 Features**
  - Layer 1: ESG Chatbot Analyzer
@@ -20,7 +19,7 @@ This MVP has tow main layers:
     
     📊 Coverage summary (percentage compliance, vague vs. clear disclosures).
 
-- Layer 2: Predictive Models
+- Layer 2: Predictive Models (Future work)
 
     🔮 Regression Model → Predict ESG category scores (Environmental, Social, Governance).
     
@@ -74,3 +73,7 @@ This MVP has tow main layers:
 - [ ] Integrate all in Streamlit dashboard
 
 - [ ] Deploy full solution (Streamlit Cloud / Render)
+
+
+## **Future Work**
+- ESG Score Predictor & Forecasting → Machine learning models predict ESG category scores (Environmental, Social, Governance) and forecast future ESG trends based on company features.
