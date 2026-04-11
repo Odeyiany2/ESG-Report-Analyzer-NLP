@@ -110,3 +110,36 @@ def build_esg_agent_graph(retriever: Retriever, prompt_file: str) -> any:
     #memory saver to keep track of the agent's reasoning process
     memory = MemorySaver()
     return graph.compile(checkpointer=memory)
+
+
+
+#convenience function to initialize the retriever and graph for the Streamlit app
+def run_esg_analysis(query: str, retriever: Retriever, 
+                     prompt_file:str, thread_id: str = "default") -> str:
+    """
+    Convenience function to run the full ESG analysis pipeline.
+ 
+    Args:
+        query: The user's analysis query.
+        retriever: Initialized Retriever with vector stores ready.
+        prompts_file: Path to prompt_esg.yml.
+        thread_id: Used by MemorySaver to keep conversation history per session.
+ 
+    Returns:
+        The LLM-generated ESG analysis as a string.
+    """
+    graph = build_esg_agent_graph(retriever, prompt_file)
+
+    initial_state: ESGstate = {
+        "query": query,
+        "reports_ready": True,
+        "retrieved_docs": None,
+        "enriched_reports": None,
+        "response": None}
+
+
+    #thread id can be used to track the conversation history in MemorySaver
+    config = {"configurable": {"thread_id": thread_id}}
+    result = graph.invoke(initial_state, config=config)
+
+    return result.get("response", "No response generated.")
