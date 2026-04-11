@@ -22,8 +22,6 @@ class ESGstate(BaseModel):
 
 
 
-
-
 #retrieve ESG report node
 def retrieve_node(state: ESGstate) -> ESGstate:
     if not state.reports_ready:
