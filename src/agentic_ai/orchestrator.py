@@ -25,6 +25,7 @@ class ESGstate(TypedDict):
 
 #retrieve ESG report node
 def retrieve_node(state: ESGstate, retriever: Retriever) -> ESGstate:
+    """Retrieves relevant ESG report sections and standard references."""
     if not state.reports_ready:
         esg_agents_logger.error("ESG reports not uploaded or indexed before retrieval.")
         raise ValueError("Reports not uploaded or indexed.")
@@ -36,7 +37,7 @@ def retrieve_node(state: ESGstate, retriever: Retriever) -> ESGstate:
         raise ValueError("No relevant documents found for the given query.")
     return {"retrieved_docs": retrieved}
 
-    #classify ESG aspects node
+#classify ESG aspects node
 def classify_node(state: ESGstate, retriever: Retriever) -> dict:
     """classify retrieved report sections into E, S, G categories using FinBert"""
     retrieved_docs = state.get("retrieved_docs")
@@ -50,72 +51,62 @@ def classify_node(state: ESGstate, retriever: Retriever) -> dict:
         raise ValueError("Failed to enrich report sections with ESG classifications.")
     return {"enriched_reports": enriched}
 
-    # #ESG scores node 
-    # def predict_node(state):
-    #     pass
-
 #summarize ESG findings node
 def summarize_node(state: ESGstate, retriever: Retriever, prompt_file: str) -> ESGstate:
-    if not state.retrieved_docs or not state.classification:
-        esg_agents_logger.error("Insufficient data to summarize ESG findings.")
-        raise ValueError("Insufficient data to summarize ESG findings.")
-    esg_agents_logger.info("Summarizing ESG findings...")
-
+    """Builds the full prompt and runs LLM analysis to produce the final response."""
+    retrieved_docs = state.get("retrieved_docs")
+    enriched_reports = state.get("enriched_reports")
+    if not retrieved_docs or not enriched_reports:
+        esg_agents_logger.error("Insufficient data to summarize.")
+        raise ValueError("Both retrieved_docs and enriched_reports must be present before summarizing.")
+ 
+    esg_agents_logger.info("Building prompt and running LLM analysis...")
+    serialized_reports = [
+        f"[{s['esg_label']} | confidence: {s['confidence']}]\n"
+        f"{s['text']}\n"
+        f"Key tokens: {s.get('important_tokens', 'N/A')}"
+        for s in enriched_reports
+    ]
     context = {
-            "standards": state.retrieved_docs.get("standards", []),
-            "reports": state.classification,
+            "standards": retrieved_docs.get("standards", []),
+            "reports": serialized_reports,
         }
 
-    prompt = retriever.load_prompts(r"C:\Projects_ML\ESG-Report-Analyzer\ESG-Report-Analyzer-NLP\src\nlp\prompt_esg.yml")
-
+    prompt = retriever.load_prompts(prompt_file)
     full_prompt = retriever.build_prompt(
-            query=state.query,
+            query=state["query"],
             context=context,
             prompt_data = prompt 
         )
 
     response = retriever.run_analysis(full_prompt)
-    state.response = response
 
-    return state
+    return {"response": response}
 
-def build_esg_agent_graph() -> StateGraph:
+def build_esg_agent_graph(retriever: Retriever, prompt_file: str) -> any:
+    """
+    Builds and compiles the LangGraph ESG analysis pipeline.
+ 
+    Args:
+        retriever: An initialized Retriever instance with vector stores loaded.
+        prompts_file: Path to the prompt_esg.yml file.
+ 
+    Returns:
+        A compiled LangGraph graph ready to invoke.
+    """
     graph = StateGraph(ESGstate)
 
-    # Define nodes
-    retrieve_tool = ToolNode(
-        name="Retrieve ESG Reports",
-        func=ESGstate.retrieve_node,
-        description="Retrieves relevant ESG reports based on the user's query."
-    )
+    graph.add_node("retrieve", lambda state: retrieve_node(state, retriever))
+    graph.add_node("classify", lambda state: classify_node(state, retriever))
+    graph.add_node("summarize", lambda state: summarize_node(state, retriever, prompt_file))
 
-    classify_tool = ToolNode(
-        name="Classify ESG Aspects",
-        func=ESGstate.classify_node,
-        description="Classifies sections of the retrieved ESG reports into E, S, and G categories."
-    )
+    #define the pipeline flow
+    graph.add_edge(START, "retrieve")
+    graph.add_edge("retrieve", "classify")
+    graph.add_edge("classify", "summarize")
+    graph.add_edge("summarize", END)
 
-    # predict_tool = ToolNode(
-    #     name="Predict ESG Scores",
-    #     func=ESGstate.predict_node,
-    #     description="Predicts ESG scores based on classified report sections."
-    # )
 
-    summarize_tool = ToolNode(
-        name="Summarize ESG Findings",
-        func=ESGstate.summarize_node,
-        description="Summarizes the ESG findings from the classified report sections."
-    )
-
-    # Add nodes to graph
-    graph.add_node(retrieve_tool, START)
-    graph.add_node(classify_tool, tools_condition(START))
-    # graph.add_node(predict_tool, tools_condition(classify_tool))
-    graph.add_node(summarize_tool, tools_condition(classify_tool))
-    graph.add_node(END, tools_condition(summarize_tool))
-
-    # Add memory saver checkpoint
-    memory_saver = MemorySaver(ESGstate)
-    graph.add_checkpoint(memory_saver)
-
-    return graph.compile()
+    #memory saver to keep track of the agent's reasoning process
+    memory = MemorySaver()
+    return graph.compile(checkpointer=memory)
