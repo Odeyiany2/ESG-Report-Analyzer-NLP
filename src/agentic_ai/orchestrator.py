@@ -1,13 +1,10 @@
 from src.utils.logging import esg_agents_logger
 from src.nlp.retriever import Retriever
-from src.nlp.embeddings import EmbeddingHandler
 from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import tools_condition, ToolNode
-from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
-from typing import Annotated, Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List
 from typing_extensions import TypedDict
-from pydantic import BaseModel, Field
+
 
 
 
