@@ -33,7 +33,7 @@ class EmbeddingHandler:
                 embedding=self.embedding_model,
                 persist_directory=persist_directory
             )
-            vectordb.persist()
+            #vectordb.persist()
             embedding_logger.info(f"Documents embedded and stored at {persist_directory}")
             return vectordb
         except Exception as e:
