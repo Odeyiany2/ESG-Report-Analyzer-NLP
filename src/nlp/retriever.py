@@ -33,29 +33,40 @@ class Retriever:
         self.standards_vectorstore = None
         self.reports_vectorstore = None
     
-    #load the vector store for standards and the user uploaded reports
+    # vector store management - create or load vector stores for standards and reports 
     def create_vector_store(self, standards_vector_path:str, 
                             standard_docs: List[Document],
                             uploaded_report: List[Document], reports_vector_path:str):
-        retriever_logger.info("Creating vector stores for standards and reports uploaded...")
+        """
+        Creates or loads vector stores for ESG standards and the uploaded report.
+        Each store is handled independently so a new user upload always gets
+        a fresh reports store even when the standards store already exists.
+        """
+        retriever_logger.info("setting up vector stores...")
         try:
-            #check if the vector stores already exist, if not create them
-            if not os.path.exists(standards_vector_path) or not os.path.exists(reports_vector_path):
-                retriever_logger.info("Vector stores not found, creating new ones...")
+            #standards vector store 
+            if not os.path.exists(standards_vector_path) or not os.listdir(standards_vector_path):
+                retriever_logger.info("Standard vector store not found, creating...")
                 os.makedirs(standards_vector_path, exist_ok=True)
-                os.makedirs(reports_vector_path, exist_ok=True)
-                self.reports_vectorstore = self.embed.embed_documents(uploaded_report, persist_directory=reports_vector_path)
-                self.standards_vectorstore = self.embed.embed_documents(standard_docs, persist_directory=standards_vector_path)
+                self.standards_vectorstore = self.embed.embed_documents(standard_docs, 
+                                                                        persist_directory=standards_vector_path)
             else:
-                retriever_logger.info("Loading existing vector stores...")
-                self.reports_vectorstore = self.embed.load_vectorstore(persist_directory=reports_vector_path)
-                self.standards_vectorstore = self.embed.load_vectorstore(persist_directory=standards_vector_path)
+                retriever_logger.info("Loading existing standard vector stores...")
+                self.standards_vectorstore = self.embed.load_vectorstore(
+                    persist_directory=standards_vector_path)
             retriever_logger.info("Vector stores are ready for use.")
+            
+            #reports vector store - always create a new one for each user upload
+            retriever_logger.info("creating reports vector store for this session...")
+            os.makedirs(reports_vector_path, exist_ok=True)
+            self.reports_vectorstore = self.embed.embed_documents(uploaded_report, 
+                                                                  persist_directory=reports_vector_path)
+            retriever_logger.info("Reports vector store created successfully.")
         except Exception as e:
             retriever_logger.error(f"Error loading vector stores: {e}")
-            print(f"Error loading vector stores: {e}")
+            raise
     
-    #load the prompts from a yaml file
+    #prompt management 
     def load_prompts(self, prompts_file: str) -> Dict[str, str]:
         """
         Load prompts from a YAML file.
