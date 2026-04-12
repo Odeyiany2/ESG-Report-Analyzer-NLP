@@ -18,9 +18,12 @@ gpt_client = OpenAI(
 )
 
 #set up the tokenizer and model for esg classification
-finbert = BertForSequenceClassification.from_pretrained("yiyanghkust/finbert-esg", num_labels=4)
+finbert = BertForSequenceClassification.from_pretrained(
+    "yiyanghkust/finbert-esg", num_labels=4, output_attentions=True)
+
 tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-esg")
-nlp_classifier = pipeline("text-classification", model = finbert, tokenizer = tokenizer)
+nlp_classifier = pipeline("text-classification", model = finbert, tokenizer = tokenizer,
+                          truncation = True, max_length = 512)
 
 #retrieval and comparison class
 class Retriever:
