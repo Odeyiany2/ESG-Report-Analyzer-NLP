@@ -104,7 +104,7 @@ class Retriever:
                             Response Format:
                             {prompt_data.get("response_format", "")}
                           
-                            Stule Guidelines:
+                            Style Guidelines:
                             {prompt_data.get("style_guidelines", "")}
 
                             Examples:
@@ -141,7 +141,9 @@ class Retriever:
     #classify the ESG aspects of the report content using the finbert model
     def classify_esg(self, text:str)-> List[Dict]:
         """
-        Classify the ESG aspects of the report content using the finbert model.
+        Classifies a text chunk into one of FinBERT-ESG's four categories:
+        Environmental, Social, Governance, or None.
+        Truncation to 512 tokens is handled by the pipeline (set at init).
         """
         try:
             results = nlp_classifier(text)
@@ -155,12 +157,27 @@ class Retriever:
     #explainability layer
     def explain_classification(self, text:str, classification:Dict) -> str:
         """Provide explanations for the ESG classification results by showing the most influential tokens."""
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        outputs = finbert(**inputs, output_attentions=True)
-        attentions = outputs.attentions[-1].mean(dim =1)
-        top_token = [tokenizer.decode(inputs['input_ids'][0][i]) for i in attentions[0].topk(5).indices]
-        explanation = f"The classification '{classification['label']}' with confidence {classification['score']:.3f} is influenced by tokens: {', '.join(top_token)}"
-        return explanation
+        try:
+            inputs = tokenizer(
+                text,
+                return_tensors="pt",
+                truncation=True,
+                max_length=512,
+                padding=True
+            )
+            outputs = finbert(**inputs)
+            attentions = outputs.attentions[-1].mean(dim =1)
+            top_indices = attentions[0].topk(5).indices
+            top_tokens = [tokenizer.decode([inputs["input_ids"][0][i]]) for i in top_indices]
+            explanation = (
+                f"Classification '{classification['label']}' "
+                f"(confidence: {classification['score']:.3f}) — "
+                f"key tokens: {', '.join(top_tokens)}"
+            )
+            return explanation
+        except Exception as e:
+            retriever_logger.error(f"Error during explainability: {e}")
+            return "Explanation unavailable."
     
     #enrich context with ESG classifications
     def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
