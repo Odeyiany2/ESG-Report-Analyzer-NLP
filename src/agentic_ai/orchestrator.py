@@ -7,7 +7,6 @@ from typing_extensions import TypedDict
 
 
 
-
 #define the agent state
 class ESGstate(TypedDict):
     query: str
@@ -16,7 +15,6 @@ class ESGstate(TypedDict):
     enriched_reports: Optional[List[Dict[str, Any]]] = None
     #scores: Optional[Dict[str, float]] = None
     response: Optional[str] = None
-    
 
 
 
