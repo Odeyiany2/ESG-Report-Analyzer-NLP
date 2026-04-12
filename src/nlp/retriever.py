@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from textwrap import dedent
 from openai import OpenAI
 from langchain_core.documents import Document
-from transformers import BertTokenizer, pipeline, BertForSequenceClassification
+from transformers import BertTokenizer, Optional, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import retriever_logger
 
@@ -180,30 +180,45 @@ class Retriever:
             return "Explanation unavailable."
     
     #enrich context with ESG classifications
-    def enrich_context_with_esg(self, report_sections: List[str]) -> List[Dict]:
+    def enrich_context_with_esg(self, report_sections: List[str]) -> Optional[List[Dict]]:
         """
-        Enrich context with ESG classifications. 
+        Runs each retrieved report chunk through FinBERT-ESG classification
+        and the attention-based explainability layer.
+ 
+        Returns a list of dicts with keys: text, esg_label, confidence, important_tokens.
+        The caller (orchestrator summarize_node) is responsible for serializing
+        these dicts to strings before passing them to build_prompt().
         """
         try:
             retriever_logger.info("Enriching report sections with ESG classifications...")
-            enriched_sections = []
+            enriched = []
             for text in report_sections:
                 classification = self.classify_esg(text)
-                label = classification[0]["label"] if classification else "UNKNOWN"
-                score = round(classification[0]["score"], 3) if classification else 0.0
-                token = self.explain_classification(text, classification[0]) if classification else "No explanation available."
-                enriched_sections.append({
+                if not classification or classification[0]["label"] == "ERROR":
+                    enriched.append({
+                        "text": text,
+                        "esg_label": "UNKNOWN",
+                        "confidence": 0.0,
+                        "important_tokens": "Classification failed."
+                    })
+                    continue
+ 
+                label = classification[0]["label"]
+                score = round(classification[0]["score"], 3)
+                explanation = self.explain_classification(text, classification[0])
+                enriched.append({
                     "text": text,
                     "esg_label": label,
-                    "confidence": score, 
-                    "important_tokens": token
+                    "confidence": score,
+                    "important_tokens": explanation
                 })
-            return enriched_sections
+            retriever_logger.info(f"Enriched {len(enriched)} report sections.")
+            return enriched
         except Exception as e:
             retriever_logger.error(f"Error during context enrichment: {e}")
-            print(f"Error during context enrichment: {e}")
-            #return [{"text": text, "esg_label": "ERROR", "confidence": 0.0} for text in report_sections]
-    
+            return []
+
+    #LLM call to run the analysis based on the constructed prompt
     def run_analysis(self, prompt:str) -> str:
         """
         Run the ESG analysis by sending the constructed prompt to the LLM.
@@ -212,9 +227,15 @@ class Retriever:
             retriever_logger.info("Sending prompt to LLM for ESG analysis...")
             response = self.llm.chat.completions.create(
                 model = "openai/gpt-oss-120b:fireworks-ai",
-                messages= [
-                    {"role": "user", "content": prompt},
-                    {"role": "system", "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."}
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    },
                 ],
                 temperature=0.1,
                 max_tokens=2000,
@@ -223,36 +244,37 @@ class Retriever:
             return response.choices[0].message.content
         except Exception as e:
             retriever_logger.error(f"Error during ESG analysis: {e}")
-            print(f"Error during ESG analysis: {e}")
             return "An error occurred when trying to analyze the ESG report. Please try again."
         
-    # #compare report content against standards using the fully constructed prompt and the llm 
-    # def compare_content(self, query: str, prompt_path: str) -> str:
-    #     """
-    #     Compare report content against standards using the fully constructed prompt and the llm. 
-    #     """
-    #     try:
-    #         contexts = self.retrieve_context(query)
-    #         enriched_reports = self.enrich_context_with_esg(contexts["reports"])
-    #         contexts["reports"] = enriched_reports
-
-    #         prompts = self.load_prompts(prompt_path)
-    #         full_prompt = self.build_prompt(query, contexts, prompts)
-    #         retriever_logger.info("Sending enriched prompt to LLM for ESG analysis...")
-
-    #         response = self.llm.chat.completions.create(
-    #             model = "openai/gpt-oss-120b:fireworks-ai",
-    #             messages= [
-    #                 {"role": "user", "content": full_prompt},
-    #                 {"role": "system", "content": "You are a helpful assistant that helps users analyze ESG reports based on relevant standards."}
-    #             ],
-    #             temperature=0.2,
-    #             max_tokens=2000,
-    #         )
-    #         retriever_logger.info("Received response from LLM.")
-    #         return response.choices[0].message.content
-    #     except Exception as e:
-    #         retriever_logger.error(f"Error during content comparison: {e}")
-    #         print(f"Error during content comparison: {e}")
-    #         return "An error occurred when trying to analyze the ESG report. Please try again."
-        
+    #compare report content against standards using the fully constructed prompt and the llm 
+    #orchestration shortcut (used by FastAPI directly, bypasses LangGraph)
+    def compare_content(self, query: str, prompt_file: str) -> str:
+        """
+        Compare report content against standards using the fully constructed prompt and the llm. 
+        """
+        try:
+            #Retrieve relevant chunks
+            contexts = self.retrieve_context(query)
+ 
+            #Classify and enrich report sections
+            enriched_reports = self.enrich_context_with_esg(contexts["reports"])
+ 
+            #Serialize enriched dicts → strings for the prompt
+            contexts["reports"] = [
+                f"[{s['esg_label']} | confidence: {s['confidence']}]\n"
+                f"{s['text']}\n"
+                f"Key tokens: {s.get('important_tokens', 'N/A')}"
+                for s in enriched_reports
+            ]
+ 
+            #Load prompts and build the full prompt string
+            prompt_data = self.load_prompts(prompt_file)
+            full_prompt = self.build_prompt(query, contexts, prompt_data)
+ 
+            #Send to LLM
+            retriever_logger.info("Running full compare_content pipeline...")
+            return self.run_analysis(full_prompt)
+ 
+        except Exception as e:
+            retriever_logger.error(f"Error during content comparison: {e}")
+            return "An error occurred when trying to analyze the ESG report. Please try again."
