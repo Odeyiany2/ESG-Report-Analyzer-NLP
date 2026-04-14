@@ -1,11 +1,11 @@
 import os 
 import yaml
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from textwrap import dedent
 from openai import OpenAI
 from langchain_core.documents import Document
-from transformers import BertTokenizer, Optional, pipeline, BertForSequenceClassification
+from transformers import BertTokenizer, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import retriever_logger
 
