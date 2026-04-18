@@ -381,6 +381,13 @@ with st.sidebar:
 # ---------------------------------------------------------------------------
 # Main area
 # ---------------------------------------------------------------------------
+if not st.session_state.sidebar_open:
+    st.markdown('<div class="sidebar-toggle-btn">', unsafe_allow_html=True)
+    if st.button("🌿 Open sidebar", key="open_sidebar"):
+        st.session_state.sidebar_open = True
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+ 
 st.markdown(
     '<div class="app-title">ESG Report Analyzer</div>'
     '<div class="app-subtitle">Upload a sustainability report · Analyze against GRI, SASB & IFRS · Ask follow-up questions</div>',
