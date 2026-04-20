@@ -194,6 +194,7 @@ def init_session():
         "messages": [],          # {"role": "user"|"assistant", "content": str, "timestamp": str}
         "analysis_report": None, # raw markdown string of the initial analysis
         "esg_labels": [],        # list of detected ESG label strings
+        "sidebar_open": True,    # tracks sidebar visibility so we can offer a reopen button
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -376,6 +377,12 @@ with st.sidebar:
                 st.session_state[key] = [] if key in ["messages", "uploaded_files", "esg_labels"] else None
             st.session_state.analysis_done = False
             st.rerun()
+    
+    # --- Collapse sidebar button ---
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    if st.button("✕ Close sidebar", use_container_width=True, key="close_sidebar"):
+        st.session_state.sidebar_open = False
+        st.rerun()
  
  
 # ---------------------------------------------------------------------------
