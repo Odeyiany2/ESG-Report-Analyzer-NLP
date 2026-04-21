@@ -54,17 +54,26 @@ class DocumentHandler:
         # initialize an empty list to store the loaded documents
         ESG_docs = []
 
+        doc_handler_logger.info(f"Starting to process {len(uploaded_files)} uploaded files")
         # create a temporary directory to store the uploaded files 
         with tempfile.TemporaryDirectory() as temp_dir:
             for file in uploaded_files:
+                doc_handler_logger.info(f"Processing file: {file.filename}")
                 # save the uploaded file to the temporary directory 
-                file_path = Path(temp_dir) / file.name
-                with open(file_path, "wb") as f:
-                    f.write(file.getbuffer())
+                file_path = Path(temp_dir) / file.filename
+                try:
+                    with open(file_path, "wb") as f:
+                        content = file.file.read()
+                        f.write(content)
+                        doc_handler_logger.info(f"Saved {len(content)} bytes for file: {file.filename}")
+                except Exception as e:
+                    doc_handler_logger.error(f"Error saving file {file.filename}: {e}")
+                    continue
                 
                 docs = []
                 # determine the file type and use the appropriate loader
-                suffix = os.path.splitext(file.name)[-1].lower()
+                suffix = os.path.splitext(file.filename)[-1].lower()
+                doc_handler_logger.info(f"Detected file extension: {suffix} for {file.filename}")
                 try:
                     if suffix == ".pdf":
                         loader = PyPDFLoader(file_path=str(file_path))
@@ -78,23 +87,27 @@ class DocumentHandler:
                         loader = TextLoader(file_path=str(file_path), encoding="utf-8")
                         docs = loader.load()
                     else:
-                        doc_handler_logger.warning(f"Unsupported file type: {suffix}. Skipping file: {file.name}")
-                        print(f"Unsupported file type: {suffix}. Skipping file: {file.name}")
+                        doc_handler_logger.warning(f"Unsupported file type: {suffix}. Skipping file: {file.filename}")
+                        print(f"Unsupported file type: {suffix}. Skipping file: {file.filename}")
                         continue
 
+                    doc_handler_logger.info(f"Loaded {len(docs)} documents from {file.filename}")
                     # add metadata to each document and append to the list
                     for d in docs:
-                        d.metadata["source"] = file.name
+                        d.metadata["source"] = file.filename
                         d.metadata["subject"] = "user_upload"
                         ESG_docs.append(d)
 
                 except Exception as e:
-                    doc_handler_logger.error(f"Error loading file {file.name}, Error: {e}")
-                    print(f"Error loading file {file.name}, Error: {e}")
+                    doc_handler_logger.error(f"Error loading file {file.filename}, Error: {e}")
+                    print(f"Error loading file {file.filename}, Error: {e}")
                     continue
 
                 finally:
                     # remove the temporary file
-                    os.remove(file_path)
+                    if file_path.exists():
+                        os.remove(file_path)
+        
+        doc_handler_logger.info(f"Successfully loaded {len(ESG_docs)} total documents from all uploaded files")
         return ESG_docs
 
