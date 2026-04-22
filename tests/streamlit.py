@@ -376,11 +376,12 @@ with st.sidebar:
                 st.session_state[key] = [] if key in ["messages", "uploaded_files", "esg_labels"] else None
             st.session_state.analysis_done = False
             st.rerun()
-    
+
+
 # ---------------------------------------------------------------------------
 # Main area
 # ---------------------------------------------------------------------------
- 
+
 st.markdown(
     '<div class="app-title">ESG Report Analyzer</div>'
     '<div class="app-subtitle">Upload a sustainability report · Analyze against GRI, SASB & IFRS · Ask follow-up questions</div>',
@@ -389,7 +390,7 @@ st.markdown(
  
 # --- Handle Analyze button click ---
 if analyze_clicked and uploaded_files:
-    with st.spinner("Uploading documents and building vector index..."):
+    with st.status("📤 Uploading documents and building vector index...", expanded=True):
         result = upload_to_api(uploaded_files)
  
     if result:
@@ -409,7 +410,7 @@ if analyze_clicked and uploaded_files:
             "Include the full structured table of ESG percepts."
         )
  
-        with st.spinner("Running ESG analysis — this may take a moment..."):
+        with st.status("🔄 Running ESG analysis — this may take a moment...", expanded=True):
             analysis = query_api(initial_query, st.session_state.session_id)
  
         if analysis:
@@ -514,7 +515,7 @@ if st.session_state.analysis_done:
             "timestamp": timestamp
         })
  
-        with st.spinner("Thinking..."):
+        with st.status("🤔 Thinking...", expanded=True):
             response = query_api(user_input, st.session_state.session_id)
  
         if response:
