@@ -1,4 +1,5 @@
 from typing import List
+import os
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -7,9 +8,20 @@ from src.utils.logging import embedding_logger
 
 class EmbeddingHandler:
     def __init__(self, model_name: str = "intfloat/e5-base-v2", device: str = "cpu"):
+        # Set longer timeout for HuggingFace hub downloads (300 seconds for large models)
+        os.environ['HF_HUB_DOWNLOAD_TIMEOUT'] = '300'
+        
+        # Disable symlink warning on Windows
+        os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+        
+        # Enable caching to avoid re-downloading
+        cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
+        os.environ['HF_HOME'] = cache_dir
+        
         self.embedding_model = HuggingFaceEmbeddings(
             model_name=model_name,
-            model_kwargs={'device': device}
+            model_kwargs={'device': device},
+            cache_folder=cache_dir
         )
     def text_split(self, documents: List[Document], chunk_size: int = 800, chunk_overlap: int = 100) -> List[Document]:
         """

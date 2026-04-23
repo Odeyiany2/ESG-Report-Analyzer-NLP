@@ -1,5 +1,6 @@
 import os 
 import yaml
+from pathlib import Path
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from textwrap import dedent
@@ -44,23 +45,27 @@ class Retriever:
         """
         retriever_logger.info("setting up vector stores...")
         try:
+            # Convert paths to Path objects for safe handling
+            standards_path = Path(standards_vector_path)
+            reports_path = Path(reports_vector_path)
+            
             #standards vector store 
-            if not os.path.exists(standards_vector_path) or not os.listdir(standards_vector_path):
-                retriever_logger.info("Standard vector store not found, creating...")
-                os.makedirs(standards_vector_path, exist_ok=True)
+            if not standards_path.exists() or not list(standards_path.iterdir()):
+                retriever_logger.info(f"Standard vector store not found at {standards_vector_path}, creating...")
+                standards_path.mkdir(parents=True, exist_ok=True)
                 self.standards_vectorstore = self.embed.embed_documents(standard_docs, 
-                                                                        persist_directory=standards_vector_path)
+                                                                        persist_directory=str(standards_path))
             else:
-                retriever_logger.info("Loading existing standard vector stores...")
+                retriever_logger.info(f"Loading existing standard vector stores from {standards_vector_path}...")
                 self.standards_vectorstore = self.embed.load_vectorstore(
-                    persist_directory=standards_vector_path)
+                    persist_directory=str(standards_path))
             retriever_logger.info("Vector stores are ready for use.")
             
             #reports vector store - always create a new one for each user upload
-            retriever_logger.info("creating reports vector store for this session...")
-            os.makedirs(reports_vector_path, exist_ok=True)
+            retriever_logger.info(f"creating reports vector store for this session at {reports_vector_path}...")
+            reports_path.mkdir(parents=True, exist_ok=True)
             self.reports_vectorstore = self.embed.embed_documents(uploaded_report, 
-                                                                  persist_directory=reports_vector_path)
+                                                                  persist_directory=str(reports_path))
             retriever_logger.info("Reports vector store created successfully.")
         except Exception as e:
             retriever_logger.error(f"Error loading vector stores: {e}")

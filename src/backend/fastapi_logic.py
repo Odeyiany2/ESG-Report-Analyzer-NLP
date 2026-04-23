@@ -1,5 +1,6 @@
 import uuid
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -23,19 +24,28 @@ app = FastAPI(
 )
 
 #load the standard ESG documents from the specified directory
-standard_docs_dir = os.getenv("STANDARD_DOCS_DIR", "data/standards")
+standard_docs_dir = str(Path(os.getenv("STANDARD_DOCS_DIR", "data/standards")).resolve())
 doc_handler = DocumentHandler()
 standard_documents = doc_handler.load_standard_documents(standard_docs_dir)
 
 #get the file paths for vector stores from environment variables
-standards_vector_path = os.getenv("STANDARD_VECTORSTORE_PATH", "vectorstores/standards")
-reports_vector_path = os.getenv("REPORTS_VECTORSTORE_PATH", "vectorstores/uploaded_reports")
+standards_vector_path = str(Path(os.getenv("STANDARD_VECTORSTORE_PATH", "vectorstores/standards")).resolve())
+reports_vector_path = str(Path(os.getenv("REPORTS_VECTORSTORE_PATH", "vectorstores/uploaded_reports")).resolve())
 
 #get the file path for the prompts yaml file
-prompts_file_path = os.getenv("PROMPTS_FILE_PATH")
+prompts_file_path = str(Path(os.getenv("PROMPTS_FILE_PATH")).resolve()) if os.getenv("PROMPTS_FILE_PATH") else None
 
 #initialize a dictionary to store user uploaded reports in-memory (keyed by session ID)
 user_uploaded_report: Dict[str, List] = {}
+
+#initialize embedding handler once at startup (expensive operation)
+try:
+    api_logger.info("Initializing embedding handler at app startup...")
+    embedding_handler = EmbeddingHandler()
+    api_logger.info("Embedding handler initialized successfully.")
+except Exception as e:
+    api_logger.error(f"Failed to initialize embedding handler: {e}")
+    embedding_handler = None
 
 @app.get("/health")
 async def health_check():
@@ -99,15 +109,22 @@ async def query_assistant(request:Request):
             api_logger.error(f"No uploaded reports found for session ID {session_id}.")
             raise HTTPException(status_code=400, detail="No uploaded reports found for the provided session ID.")
         
-        #initialize the retriever with embedding handler
-        retriever = Retriever(embedding_handler=EmbeddingHandler())
+        
+        #check if embedding handler is initialized
+        if embedding_handler is None:
+            api_logger.error("Embedding handler not initialized.")
+            raise HTTPException(status_code=500, detail="System not ready. Embedding handler failed to initialize.")
+        
+        #initialize the retriever with the pre-initialized embedding handler
+        retriever = Retriever(embedding_handler=embedding_handler)
 
-        session_reports_path = os.path.join(reports_vector_path, session_id)
+        session_reports_path = str(Path(reports_vector_path) / session_id)
+        api_logger.info(f"Session {session_id}: vector store path = {session_reports_path}")
         retriever.create_vector_store(
             standards_vector_path=standards_vector_path,
             standard_docs=standard_documents,
             uploaded_report=uploaded_reports,
-            reports_vector_path= session_reports_path
+            reports_vector_path=session_reports_path
         )
 
         api_logger.info(f"Session {session_id}: running ESG analysis for query: '{query}'")

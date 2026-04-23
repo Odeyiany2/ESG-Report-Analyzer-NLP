@@ -230,7 +230,7 @@ def query_api(query: str, session_id: str) -> str | None:
         response = requests.post(
             f"{BASE_URL}/query",
             json=payload,
-            timeout=120  # LLM calls can take a while
+            timeout=300  # LLM calls and embeddings can take a while (5 minutes max)
         )
         if response.status_code == 200:
             return response.json().get("response")
