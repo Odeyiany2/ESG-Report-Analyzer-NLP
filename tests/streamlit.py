@@ -1,19 +1,22 @@
 import streamlit as st
 import requests
-import json
-import time
 from datetime import datetime
 from io import BytesIO
-
-
-st.set_page_config(page_title="ESG Report Analyzer",
-                   page_icon = "🌿",
-                   initial_sidebar_state="expanded",
-                   layout="wide")
-
-
+ 
+# ---------------------------------------------------------------------------
+# Page config
+# ---------------------------------------------------------------------------
+_sidebar_state = "expanded" if st.session_state.get("sidebar_open", True) else "collapsed"
+ 
+st.set_page_config(
+    page_title="ESG Report Analyzer",
+    page_icon="🌿",
+    initial_sidebar_state=_sidebar_state,
+    layout="wide"
+)
+ 
 BASE_URL = "http://localhost:8000"
-
+ 
 ESG_BADGE_COLORS = {
     "Environmental": {"bg": "#d4edda", "text": "#155724", "border": "#28a745", "emoji": "🌍"},
     "Social":        {"bg": "#cce5ff", "text": "#004085", "border": "#0d6efd", "emoji": "🤝"},
@@ -21,25 +24,26 @@ ESG_BADGE_COLORS = {
     "None":          {"bg": "#f8d7da", "text": "#721c24", "border": "#dc3545", "emoji": "❓"},
     "UNKNOWN":       {"bg": "#e2e3e5", "text": "#383d41", "border": "#6c757d", "emoji": "❓"},
 }
-
+ 
 # ---------------------------------------------------------------------------
 # Custom CSS
 # ---------------------------------------------------------------------------
+# FIX: Removed the duplicate [data-testid="stSidebar"] block that was trying
+# to force display/visibility/width with !important. This directly conflicts
+# with Streamlit's own sidebar collapse logic and was causing the sidebar to
+# stay hidden. Never override Streamlit's sidebar display properties via CSS.
 st.markdown("""
 <style>
-    /* --- Fonts --- */
     @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
  
     html, body, [class*="css"] {
         font-family: 'DM Sans', sans-serif;
     }
  
-    /* --- Global background --- */
     .stApp {
         background-color: #f5f7f2;
     }
  
-    /* --- Sidebar --- */
     [data-testid="stSidebar"] {
         background-color: #1a2e1a;
         border-right: none;
@@ -62,7 +66,6 @@ st.markdown("""
         border-color: #52a347;
     }
  
-    /* --- Page title --- */
     .app-title {
         font-family: 'DM Serif Display', serif;
         font-size: 2.2rem;
@@ -77,7 +80,6 @@ st.markdown("""
         font-weight: 300;
     }
  
-    /* --- Chat messages --- */
     .chat-message {
         padding: 1rem 1.2rem;
         border-radius: 12px;
@@ -108,7 +110,6 @@ st.markdown("""
         opacity: 0.7;
     }
  
-    /* --- ESG Badge --- */
     .esg-badge {
         display: inline-block;
         padding: 0.25rem 0.7rem;
@@ -119,7 +120,6 @@ st.markdown("""
         margin: 0.15rem;
     }
  
-    /* --- Status cards --- */
     .status-card {
         background: white;
         border-radius: 10px;
@@ -128,21 +128,17 @@ st.markdown("""
         margin-bottom: 0.5rem;
         font-size: 0.88rem;
     }
-    .status-card.success { border-left: 4px solid #28a745; }
-    .status-card.info    { border-left: 4px solid #0d6efd; }
-    .status-card.warning { border-left: 4px solid #ffc107; }
+    .status-card.info { border-left: 4px solid #0d6efd; }
  
-    /* --- Section divider --- */
     .section-label {
         font-size: 0.7rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.12em;
-        color: #5a7a5a;
+        color: #8aaa8a;
         margin: 1.2rem 0 0.5rem 0;
     }
  
-    /* --- Download button styling --- */
     .stDownloadButton > button {
         background-color: #2d5a27 !important;
         color: white !important;
@@ -151,22 +147,31 @@ st.markdown("""
         font-family: 'DM Sans', sans-serif !important;
         font-weight: 500 !important;
         width: 100%;
-        transition: all 0.2s ease;
     }
     .stDownloadButton > button:hover {
         background-color: #3d7a35 !important;
     }
  
-    /* --- Chat input --- */
     .stChatInput > div {
         border-color: #dde8dd !important;
         border-radius: 10px !important;
     }
  
-    /* --- Hide default Streamlit branding --- */
-    #MainMenu, footer, header { visibility: hidden; }
+    /* Reopen button shown in main area when sidebar is closed */
+    .sidebar-toggle-btn > button {
+        background-color: #1a2e1a !important;
+        color: #e8f0e8 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-size: 0.85rem !important;
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 500 !important;
+        margin-bottom: 1rem;
+    }
+    .sidebar-toggle-btn > button:hover {
+        background-color: #2d5a27 !important;
+    }
  
-    /* --- Analysis complete banner --- */
     .analysis-banner {
         background: linear-gradient(135deg, #1a2e1a 0%, #2d5a27 100%);
         color: #e8f0e8;
@@ -179,6 +184,8 @@ st.markdown("""
         font-family: 'DM Serif Display', serif;
         font-size: 1.1rem;
     }
+ 
+    #MainMenu, footer, header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
  
@@ -191,9 +198,10 @@ def init_session():
         "session_id": None,
         "uploaded_files": [],
         "analysis_done": False,
-        "messages": [],          # {"role": "user"|"assistant", "content": str, "timestamp": str}
-        "analysis_report": None, # raw markdown string of the initial analysis
-        "esg_labels": [],        # list of detected ESG label strings
+        "messages": [],
+        "analysis_report": None,
+        "esg_labels": [],
+        "sidebar_open": True,
     }
     for key, val in defaults.items():
         if key not in st.session_state:
@@ -206,15 +214,13 @@ init_session()
 # API helpers
 # ---------------------------------------------------------------------------
 def upload_to_api(files) -> dict | None:
-    """Uploads files to the FastAPI /upload endpoint."""
     try:
         file_tuples = [("files", (f.name, f.getvalue(), f.type)) for f in files]
         response = requests.post(f"{BASE_URL}/upload", files=file_tuples, timeout=60)
         if response.status_code == 200:
             return response.json()
-        else:
-            st.error(f"Upload failed: {response.json().get('detail', 'Unknown error')}")
-            return None
+        st.error(f"Upload failed: {response.json().get('detail', 'Unknown error')}")
+        return None
     except requests.exceptions.ConnectionError:
         st.error("⚠️ Cannot connect to the API. Make sure the FastAPI server is running.")
         return None
@@ -224,19 +230,13 @@ def upload_to_api(files) -> dict | None:
  
  
 def query_api(query: str, session_id: str) -> str | None:
-    """Sends a query to the FastAPI /query endpoint."""
     try:
         payload = {"query": query, "session_id": session_id}
-        response = requests.post(
-            f"{BASE_URL}/query",
-            json=payload,
-            timeout=300  # LLM calls and embeddings can take a while (5 minutes max)
-        )
+        response = requests.post(f"{BASE_URL}/query", json=payload, timeout=300)
         if response.status_code == 200:
             return response.json().get("response")
-        else:
-            st.error(f"Query failed: {response.json().get('detail', 'Unknown error')}")
-            return None
+        st.error(f"Query failed: {response.json().get('detail', 'Unknown error')}")
+        return None
     except requests.exceptions.ConnectionError:
         st.error("⚠️ Cannot connect to the API. Make sure the FastAPI server is running.")
         return None
@@ -246,7 +246,6 @@ def query_api(query: str, session_id: str) -> str | None:
  
  
 def check_api_health() -> bool:
-    """Pings /health to confirm the API is reachable."""
     try:
         r = requests.get(f"{BASE_URL}/health", timeout=5)
         return r.status_code == 200
@@ -255,7 +254,7 @@ def check_api_health() -> bool:
  
  
 # ---------------------------------------------------------------------------
-# ESG badge renderer
+# ESG helpers
 # ---------------------------------------------------------------------------
 def render_esg_badge(label: str) -> str:
     style = ESG_BADGE_COLORS.get(label, ESG_BADGE_COLORS["UNKNOWN"])
@@ -267,10 +266,6 @@ def render_esg_badge(label: str) -> str:
  
  
 def extract_esg_labels_from_response(response_text: str) -> list[str]:
-    """
-    Naively scans the response text for E/S/G label mentions.
-    Used to surface the badge summary after analysis.
-    """
     found = []
     for label in ["Environmental", "Social", "Governance"]:
         if label.lower() in response_text.lower():
@@ -293,7 +288,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
  
-    # --- API status ---
     api_ok = check_api_health()
     status_color = "#52a347" if api_ok else "#dc3545"
     status_text = "API Connected" if api_ok else "API Offline"
@@ -322,14 +316,12 @@ with st.sidebar:
                 unsafe_allow_html=True
             )
  
-    # --- Analyze button ---
     analyze_clicked = st.button(
         "🔍 Run ESG Analysis",
         disabled=not (uploaded_files and api_ok),
         use_container_width=True
     )
  
-    # --- Session info ---
     if st.session_state.session_id:
         st.markdown('<div class="section-label">Session</div>', unsafe_allow_html=True)
         short_id = st.session_state.session_id[:8]
@@ -339,13 +331,11 @@ with st.sidebar:
             unsafe_allow_html=True
         )
  
-    # --- ESG coverage badges (shown after analysis) ---
     if st.session_state.esg_labels:
         st.markdown('<div class="section-label">Detected Coverage</div>', unsafe_allow_html=True)
         badges_html = " ".join(render_esg_badge(l) for l in st.session_state.esg_labels)
         st.markdown(badges_html, unsafe_allow_html=True)
  
-    # --- Downloadable report ---
     if st.session_state.analysis_report:
         st.markdown('<div class="section-label">Export</div>', unsafe_allow_html=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
@@ -358,37 +348,47 @@ with st.sidebar:
             use_container_width=True
         )
  
-    # --- Reset session ---
     if st.session_state.session_id:
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("↺ New Session", use_container_width=True):
-            # Attempt to clean up on the server side
             try:
-                requests.delete(
-                    f"{BASE_URL}/session/{st.session_state.session_id}",
-                    timeout=5
-                )
+                requests.delete(f"{BASE_URL}/session/{st.session_state.session_id}", timeout=5)
             except Exception:
                 pass
-            # Reset all local state
-            for key in ["session_id", "uploaded_files", "analysis_done",
-                        "messages", "analysis_report", "esg_labels"]:
+            for key in ["session_id", "uploaded_files", "messages", "analysis_report", "esg_labels"]:
                 st.session_state[key] = [] if key in ["messages", "uploaded_files", "esg_labels"] else None
             st.session_state.analysis_done = False
+            st.session_state.sidebar_open = True
             st.rerun()
-
-
+ 
+    # FIX: Close button sets sidebar_open = False and reruns.
+    # set_page_config will then pass "collapsed" on the next run.
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("✕ Close sidebar", use_container_width=True, key="close_sidebar"):
+        st.session_state.sidebar_open = False
+        st.rerun()
+ 
+ 
 # ---------------------------------------------------------------------------
 # Main area
 # ---------------------------------------------------------------------------
-
+ 
+# FIX: When sidebar is closed, show a reopen button in the main area.
+# Clicking it sets sidebar_open = True, reruns, and set_page_config passes
+# "expanded" — this is the only reliable way to reopen the sidebar in Streamlit.
+if not st.session_state.sidebar_open:
+    st.markdown('<div class="sidebar-toggle-btn">', unsafe_allow_html=True)
+    if st.button("🌿 Open sidebar", key="open_sidebar"):
+        st.session_state.sidebar_open = True
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+ 
 st.markdown(
     '<div class="app-title">ESG Report Analyzer</div>'
     '<div class="app-subtitle">Upload a sustainability report · Analyze against GRI, SASB & IFRS · Ask follow-up questions</div>',
     unsafe_allow_html=True
 )
  
-# --- Handle Analyze button click ---
 if analyze_clicked and uploaded_files:
     with st.status("📤 Uploading documents and building vector index...", expanded=True):
         result = upload_to_api(uploaded_files)
@@ -401,7 +401,6 @@ if analyze_clicked and uploaded_files:
         st.session_state.analysis_report = None
         st.session_state.esg_labels = []
  
-        # Run the initial structured analysis
         initial_query = (
             "Provide a full ESG analysis of this report. "
             "Cover environmental, social, and governance topics. "
@@ -426,31 +425,25 @@ if analyze_clicked and uploaded_files:
             })
             st.rerun()
  
-# --- Empty state (no session yet) ---
 if not st.session_state.session_id:
     st.markdown("""
-        <div style="
-            text-align:center;
-            padding: 4rem 2rem;
-            color: #5a7a5a;
-        ">
+        <div style="text-align:center; padding: 4rem 2rem; color: #5a7a5a;">
             <div style="font-size:3rem; margin-bottom:1rem;">🌿</div>
-            <div style="font-family:'DM Serif Display',serif; font-size:1.3rem; 
+            <div style="font-family:'DM Serif Display',serif; font-size:1.3rem;
                         color:#1a2e1a; margin-bottom:0.5rem;">
                 Ready to analyze your ESG report
             </div>
             <div style="font-size:0.9rem; max-width:400px; margin:0 auto; line-height:1.7;">
-                Upload a sustainability report in the sidebar and click 
+                Upload a sustainability report in the sidebar and click
                 <strong>Run ESG Analysis</strong> to get started.
                 <br><br>
-                The tool will assess coverage, detect vague disclosures, 
-                and map your report against <strong>GRI</strong>, 
+                The tool will assess coverage, detect vague disclosures,
+                and map your report against <strong>GRI</strong>,
                 <strong>SASB</strong>, and <strong>IFRS</strong> standards.
             </div>
         </div>
     """, unsafe_allow_html=True)
  
-# --- Analysis complete banner ---
 elif st.session_state.analysis_done:
     file_list = ", ".join(st.session_state.uploaded_files)
     st.markdown(
@@ -462,7 +455,6 @@ elif st.session_state.analysis_done:
         unsafe_allow_html=True
     )
  
-# --- Render chat history ---
 if st.session_state.messages:
     for msg in st.session_state.messages:
         role = msg["role"]
@@ -479,18 +471,14 @@ if st.session_state.messages:
                 unsafe_allow_html=True
             )
         else:
-            # For the initial analysis, render as markdown (tables, bold, etc.)
-            # For follow-up responses, also render as markdown
             st.markdown(
                 f'<div class="chat-message assistant">'
                 f'<div class="sender">{"📊 ESG Analysis" if is_analysis else "🤖 Assistant"} · {timestamp}</div>'
                 f'</div>',
                 unsafe_allow_html=True
             )
-            # Render the actual content as markdown (supports tables from the LLM)
             st.markdown(content)
  
-            # Show ESG badges under the initial analysis
             if is_analysis and st.session_state.esg_labels:
                 badges_html = (
                     '<div style="margin-top:0.5rem;">'
@@ -501,11 +489,8 @@ if st.session_state.messages:
  
             st.markdown("---")
  
-# --- Follow-up chat input (only shown after initial analysis) ---
 if st.session_state.analysis_done:
-    user_input = st.chat_input(
-        "Ask a follow-up question about the report...",
-    )
+    user_input = st.chat_input("Ask a follow-up question about the report...")
  
     if user_input:
         timestamp = datetime.now().strftime("%H:%M")
@@ -527,3 +512,4 @@ if st.session_state.analysis_done:
             })
  
         st.rerun()
+ 

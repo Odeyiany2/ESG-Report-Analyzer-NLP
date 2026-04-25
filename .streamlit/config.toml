@@ -1,0 +1,12 @@
+[client]
+showSidebarNavigation = true
+
+[theme]
+primaryColor = "#2d5a27"
+backgroundColor = "#f5f7f2"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#1a2e1a"
+font = "sans serif"
+
+[logger]
+level = "info"

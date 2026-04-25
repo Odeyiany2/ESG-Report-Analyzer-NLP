@@ -1,6 +1,5 @@
 import uuid
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
@@ -24,16 +23,16 @@ app = FastAPI(
 )
 
 #load the standard ESG documents from the specified directory
-standard_docs_dir = str(Path(os.getenv("STANDARD_DOCS_DIR", "data/standards")).resolve())
+standard_docs_dir = os.path.normpath(os.getenv("STANDARD_DOCS_DIR", "data/standards"))
 doc_handler = DocumentHandler()
 standard_documents = doc_handler.load_standard_documents(standard_docs_dir)
 
 #get the file paths for vector stores from environment variables
-standards_vector_path = str(Path(os.getenv("STANDARD_VECTORSTORE_PATH", "vectorstores/standards")).resolve())
-reports_vector_path = str(Path(os.getenv("REPORTS_VECTORSTORE_PATH", "vectorstores/uploaded_reports")).resolve())
+standards_vector_path = os.path.normpath(os.getenv("STANDARD_VECTORSTORE_PATH", "vectorstores/standards"))
+reports_vector_path = os.path.normpath(os.getenv("REPORTS_VECTORSTORE_PATH", "vectorstores/uploaded_reports"))
 
 #get the file path for the prompts yaml file
-prompts_file_path = str(Path(os.getenv("PROMPTS_FILE_PATH")).resolve()) if os.getenv("PROMPTS_FILE_PATH") else None
+prompts_file_path = os.path.normpath(os.getenv("PROMPTS_FILE_PATH")) if os.getenv("PROMPTS_FILE_PATH") else None
 
 #initialize a dictionary to store user uploaded reports in-memory (keyed by session ID)
 user_uploaded_report: Dict[str, List] = {}
@@ -118,13 +117,12 @@ async def query_assistant(request:Request):
         #initialize the retriever with the pre-initialized embedding handler
         retriever = Retriever(embedding_handler=embedding_handler)
 
-        session_reports_path = str(Path(reports_vector_path) / session_id)
-        api_logger.info(f"Session {session_id}: vector store path = {session_reports_path}")
+        session_reports_path = os.path.normpath(os.path.join(reports_vector_path, session_id))
         retriever.create_vector_store(
             standards_vector_path=standards_vector_path,
             standard_docs=standard_documents,
             uploaded_report=uploaded_reports,
-            reports_vector_path=session_reports_path
+            reports_vector_path= session_reports_path
         )
 
         api_logger.info(f"Session {session_id}: running ESG analysis for query: '{query}'")
