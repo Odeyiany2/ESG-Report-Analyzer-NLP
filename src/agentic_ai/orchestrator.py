@@ -21,7 +21,7 @@ class ESGstate(TypedDict):
 #retrieve ESG report node
 def retrieve_node(state: ESGstate, retriever: Retriever) -> ESGstate:
     """Retrieves relevant ESG report sections and standard references."""
-    if not state.reports_ready:
+    if not state["reports_ready"]:
         esg_agents_logger.error("ESG reports not uploaded or indexed before retrieval.")
         raise ValueError("Reports not uploaded or indexed.")
     query = state["query"]

@@ -129,7 +129,7 @@ async def query_assistant(request:Request):
         response = run_esg_analysis(
             query=query,
             retriever=retriever,
-            prompts_file=prompts_file_path,
+            prompt_file=prompts_file_path,
             thread_id=session_id
         )
         if not response:

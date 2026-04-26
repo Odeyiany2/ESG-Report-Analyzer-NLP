@@ -392,6 +392,10 @@ st.markdown(
 if analyze_clicked and uploaded_files:
     with st.status("📤 Uploading documents and building vector index...", expanded=True):
         result = upload_to_api(uploaded_files)
+        if result:
+            st.success("✅ Upload successful! Running analysis...")
+        else:
+            st.error("❌ Upload failed. Please try again.")
  
     if result:
         st.session_state.session_id = result["session_id"]
