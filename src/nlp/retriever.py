@@ -77,7 +77,7 @@ class Retriever:
         Load prompts from a YAML file.
         """
         try:
-            with open(prompts_file, 'r') as file:
+            with open(prompts_file, 'r', encoding='utf-8') as file:
                 prompts = yaml.safe_load(file)
             retriever_logger.info(f"Prompts loaded from {prompts_file}")
             return prompts
@@ -172,7 +172,7 @@ class Retriever:
             )
             outputs = finbert(**inputs)
             attentions = outputs.attentions[-1].mean(dim =1)
-            top_indices = attentions[0].topk(5).indices
+            top_indices = attentions[0].topk(5).indices.tolist()
             top_tokens = [tokenizer.decode([inputs["input_ids"][0][i]]) for i in top_indices]
             explanation = (
                 f"Classification '{classification['label']}' "
