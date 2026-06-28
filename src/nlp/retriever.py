@@ -94,6 +94,8 @@ class Retriever:
         try:
             prompt = dedent(f"""
                             {prompt_data.get("persona", "")}
+
+                            {prompt_data.get("prior_analysis", "")}
                             Context Sections:
                             {prompt_data.get("context_instructions", "")}
 
@@ -242,7 +244,7 @@ class Retriever:
                         "content": prompt
                     },
                 ],
-                temperature=0.1,
+                temperature=0,
                 max_tokens=2000,
             )
             retriever_logger.info("Received response from LLM.")
@@ -253,7 +255,7 @@ class Retriever:
         
     #compare report content against standards using the fully constructed prompt and the llm 
     #orchestration shortcut (used by FastAPI directly, bypasses LangGraph)
-    def compare_content(self, query: str, prompt_file: str) -> str:
+    def compare_content(self, query: str, prompt_file: str, prior_analysis: str = "") -> str:
         """
         Compare report content against standards using the fully constructed prompt and the llm. 
         """
@@ -274,6 +276,10 @@ class Retriever:
  
             #Load prompts and build the full prompt string
             prompt_data = self.load_prompts(prompt_file)
+            if prior_analysis:
+                prompt_data["prior_analysis"] = (
+            f"Prior analysis of this report (do not contradict it unless asked):\n{prior_analysis}\n"
+        )
             full_prompt = self.build_prompt(query, contexts, prompt_data)
  
             #Send to LLM

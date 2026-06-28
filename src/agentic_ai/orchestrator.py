@@ -10,6 +10,7 @@ from typing_extensions import TypedDict
 #define the agent state
 class ESGstate(TypedDict):
     query: str
+    prior_analysis: str
     reports_ready: bool = False
     retrieved_docs: Optional[Dict[str, List[str]]] = None
     enriched_reports: Optional[List[Dict[str, Any]]] = None
@@ -110,7 +111,7 @@ def build_esg_agent_graph(retriever: Retriever, prompt_file: str) -> any:
 
 #convenience function to initialize the retriever and graph for the Streamlit app
 def run_esg_analysis(query: str, retriever: Retriever, 
-                     prompt_file:str, thread_id: str = "default") -> str:
+                     prompt_file:str, thread_id: str = "default", prior_analysis: str = "") -> str:
     """
     Convenience function to run the full ESG analysis pipeline.
  
@@ -119,7 +120,8 @@ def run_esg_analysis(query: str, retriever: Retriever,
         retriever: Initialized Retriever with vector stores ready.
         prompts_file: Path to prompt_esg.yml.
         thread_id: Used by MemorySaver to keep conversation history per session.
- 
+        prior_analysis: Previous analysis to inform the current analysis.
+
     Returns:
         The LLM-generated ESG analysis as a string.
     """
@@ -130,6 +132,7 @@ def run_esg_analysis(query: str, retriever: Retriever,
         "reports_ready": True,
         "retrieved_docs": None,
         "enriched_reports": None,
+        "prior_analysis": prior_analysis,
         "response": None}
 
 

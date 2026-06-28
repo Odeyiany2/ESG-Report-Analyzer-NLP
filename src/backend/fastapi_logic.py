@@ -1,3 +1,4 @@
+from urllib import response
 import uuid
 import os
 from dotenv import load_dotenv
@@ -13,6 +14,11 @@ from src.utils.logging import api_logger
 
 #load environment variables from .env file
 load_dotenv()
+
+# Add to your session store
+user_uploaded_reports: Dict[str, list] = {}
+session_analysis_cache: Dict[str, str] = {}  # session_id → initial analysis
+
 
 #initialize FastAPI app
 app = FastAPI(
@@ -126,12 +132,29 @@ async def query_assistant(request:Request):
         )
 
         api_logger.info(f"Session {session_id}: running ESG analysis for query: '{query}'")
+        #before running the analysis, check if we have a cached response for this session and query
+        # Detect if this is the initial analysis query
+        INITIAL_QUERY_MARKER = "Provide a full ESG analysis"
+
+        is_initial = query.strip().startswith(INITIAL_QUERY_MARKER)
+
+        # If it's the initial query and we already have it cached, return cache
+        if is_initial and session_id in session_analysis_cache:
+            return JSONResponse(content={
+                "status": "success",
+                "session_id": session_id,
+                "response": session_analysis_cache[session_id]
+            })
+
         response = run_esg_analysis(
             query=query,
             retriever=retriever,
             prompt_file=prompts_file_path,
             thread_id=session_id
         )
+        # After generating the initial analysis:
+        if is_initial:
+            session_analysis_cache[session_id] = response
         if not response:
             api_logger.error(f"Session {session_id}: LLM returned empty response.")
             raise HTTPException(status_code=500, detail="No response generated. Please try again.")
@@ -160,10 +183,11 @@ async def clear_session(session_id: str):
     Call this when the user is done to free up memory.
     Note: this does not delete the vector store files from disk.
     """
-    if session_id not in user_uploaded_report:
+    if session_id not in user_uploaded_reports:
         raise HTTPException(status_code=404, detail=f"Session '{session_id}' not found.")
  
-    del user_uploaded_report[session_id]
+    del user_uploaded_reports[session_id]
+    session_analysis_cache.pop(session_id, None)
     api_logger.info(f"Session {session_id} cleared from memory.")
     return JSONResponse(
         content={"status": "success", "message": f"Session '{session_id}' cleared."},
