@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ESG Report Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  /* ── Tokens ── */
+  :root {
+    --forest:     #0e1f0e;
+    --forest-mid: #1a3a1a;
+    --forest-btn: #1d7a4a;
+    --forest-btn-hover: #25a060;
+    --leaf:       #1d9e75;
+    --leaf-light: #e1f5ee;
+    --leaf-mid:   #9fe1cb;
+    --page:       #f7f8f5;
+    --card:       #ffffff;
+    --border:     #e4e9e4;
+    --border-mid: #c8d5c8;
+    --text:       #1a2e1a;
+    --text-mid:   #4a6a4a;
+    --text-muted: #8aaa8a;
+    --e-bg: #d4edda; --e-text: #155724; --e-border: #28a745;
+    --s-bg: #cce5ff; --s-text: #004085; --s-border: #0d6efd;
+    --g-bg: #fff3cd; --g-text: #856404; --g-border: #ffc107;
+    --danger: #dc3545;
+    --success: #1d9e75;
+    --warn-bg: #fff3cd; --warn-text: #856404;
+    --radius-sm: 6px;
+    --radius:    10px;
+    --radius-lg: 14px;
+    --shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0 0 0.5px rgba(0,0,0,0.04);
+    --transition: 0.18s ease;
+    --panel-w: 280px;
+    --font-serif: 'Georgia', 'Times New Roman', serif;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  /* ── Base ── */
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--page);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    display: flex;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  /* ── Left panel ── */
+  #panel {
+    width: var(--panel-w);
+    min-width: var(--panel-w);
+    background: var(--forest);
+    display: flex;
+    flex-direction: column;
+    padding: 1.75rem 1.25rem 1.25rem;
+    overflow-y: auto;
+    gap: 0;
+  }
+
+  .panel-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.35rem;
+  }
+  .panel-logo-mark {
+    width: 32px; height: 32px;
+    background: var(--forest-btn);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .panel-logo-name {
+    font-family: var(--font-serif);
+    font-size: 15px;
+    color: #e8f0e8;
+    font-weight: normal;
+    letter-spacing: 0.01em;
+  }
+  .panel-frameworks {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.12em;
+    margin-bottom: 1.75rem;
+    padding-left: 42px;
+  }
+
+  /* API pill */
+  #api-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-bottom: 1.5rem;
+    width: fit-content;
+    transition: var(--transition);
+  }
+  #api-status.online  { background: rgba(29,158,117,0.15); color: #5dcaa5; }
+  #api-status.offline { background: rgba(220,53,69,0.15);  color: #f47c7c; }
+  #api-status .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Section labels */
+  .panel-label {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    margin-top: 1.25rem;
+  }
+  .panel-label:first-of-type { margin-top: 0; }
+
+  /* Drop zone */
+  #drop-zone {
+    border: 1.5px dashed #2d5a27;
+    border-radius: var(--radius);
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--transition);
+    background: rgba(255,255,255,0.02);
+    position: relative;
+  }
+  #drop-zone:hover, #drop-zone.dragover {
+    border-color: var(--leaf);
+    background: rgba(29,158,117,0.07);
+  }
+  #drop-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon { font-size: 22px; margin-bottom: 6px; }
+  .drop-text { font-size: 11px; color: #8aaa8a; line-height: 1.5; }
+  .drop-text strong { color: #b8d4b8; font-weight: 500; }
+
+  /* File list */
+  #file-list { display: flex; flex-direction: column; gap: 5px; margin-top: 0.6rem; }
+  .file-item {
+    background: rgba(255,255,255,0.05);
+    border: 0.5px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .file-item-icon { font-size: 13px; flex-shrink: 0; }
+  .file-item-name { font-size: 11px; color: #c8dcc8; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item-size { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+
+  /* Framework checkboxes */
+  .framework-group { display: flex; flex-direction: column; gap: 6px; }
+  .framework-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #c8dcc8; cursor: pointer;
+    padding: 4px 0;
+  }
+  .framework-item input[type="checkbox"] {
+    accent-color: var(--leaf);
+    width: 14px; height: 14px; cursor: pointer;
+  }
+  .framework-badge {
+    font-size: 9px;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-left: auto;
+  }
+
+  /* Buttons */
+  .btn {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+    font-family: var(--font-sans);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-primary {
+    background: var(--forest-btn);
+    color: white;
+    margin-top: 1rem;
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--forest-btn-hover); }
+  .btn-primary:disabled {
+    opacity: 0.4; cursor: not-allowed;
+  }
+  .btn-ghost {
+    background: rgba(255,255,255,0.05);
+    color: #8aaa8a;
+    border: 0.5px solid rgba(255,255,255,0.08);
+    margin-top: 0.5rem;
+    font-size: 11px;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.09); color: #c8dcc8; }
+
+  /* Session info */
+  .session-id {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.04);
+    border-radius: 4px;
+    padding: 4px 8px;
+  }
+
+  /* ESG badges in panel */
+  .badge-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 0.25rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .badge-e { background: var(--e-bg); color: var(--e-text); border-color: var(--e-border); }
+  .badge-s { background: var(--s-bg); color: var(--s-text); border-color: var(--s-border); }
+  .badge-g { background: var(--g-bg); color: var(--g-text); border-color: var(--g-border); }
+
+  /* Download btn */
+  .btn-download {
+    background: transparent;
+    color: #8aaa8a;
+    border: 0.5px solid rgba(255,255,255,0.12);
+    font-size: 11px;
+    margin-top: 0.25rem;
+    padding: 0.5rem;
+  }
+  .btn-download:hover { background: rgba(255,255,255,0.06); color: #c8dcc8; }
+
+  /* Panel spacer */
+  .panel-spacer { flex: 1; }
+
+  /* ── Main area ── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Top bar */
+  #topbar {
+    padding: 1rem 2rem;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--card);
+    flex-shrink: 0;
+  }
+  .topbar-title {
+    font-family: var(--font-serif);
+    font-size: 1.35rem;
+    color: var(--text);
+    font-weight: normal;
+    letter-spacing: -0.01em;
+  }
+  .topbar-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+  }
+
+  /* Content area */
+  #content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 2rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* Empty state */
+  #empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    gap: 1rem;
+  }
+  .empty-icon {
+    width: 64px; height: 64px;
+    background: var(--leaf-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  .empty-title {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    color: var(--text);
+    font-weight: normal;
+  }
+  .empty-body {
+    font-size: 13px;
+    color: var(--text-muted);
+    max-width: 380px;
+    line-height: 1.8;
+  }
+  .empty-body strong { color: var(--text-mid); font-weight: 500; }
+
+  /* Progress banner */
+  #progress-banner {
+    display: none;
+    background: var(--forest);
+    color: #e8f0e8;
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  #progress-banner.visible { display: flex; }
+  .progress-title { font-size: 13px; font-weight: 500; }
+  .progress-sub { font-size: 11px; color: #8aaa8a; }
+  .progress-bar-track {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--leaf);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  /* Analysis banner */
+  #analysis-banner {
+    display: none;
+    background: linear-gradient(135deg, var(--forest) 0%, #1a4a2a 100%);
+    color: #e8f0e8;
+    border-radius: var(--radius);
+    padding: 0.9rem 1.25rem;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  #analysis-banner.visible { display: flex; }
+  .banner-left { display: flex; flex-direction: column; gap: 2px; }
+  .banner-title { font-family: var(--font-serif); font-size: 1rem; font-weight: normal; }
+  .banner-sub { font-size: 11px; color: #8aaa8a; }
+  .banner-badge-row { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  /* Metric cards */
+  #metrics {
+    display: none;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  #metrics.visible { display: grid; }
+  .metric-card {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: var(--transition);
+  }
+  .metric-card:hover { border-color: var(--border-mid); box-shadow: var(--shadow); }
+  .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+  }
+  .metric-value {
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .metric-sub { font-size: 10px; color: var(--text-muted); }
+  .metric-card.green .metric-value { color: #0f6e56; }
+  .metric-card.amber .metric-value { color: #856404; }
+  .metric-card.red   .metric-value { color: #721c24; }
+
+  /* Chat messages */
+  #chat-area { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 0.5rem; }
+
+  .msg { display: flex; flex-direction: column; gap: 4px; }
+  .msg-meta {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    padding: 0 2px;
+  }
+  .msg-body {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text);
+    box-shadow: var(--shadow);
+  }
+  .msg-body.user-body {
+    background: var(--forest);
+    color: #e8f0e8;
+    border-color: transparent;
+    align-self: flex-end;
+    max-width: 80%;
+    box-shadow: none;
+  }
+  .msg.user { align-items: flex-end; }
+
+  /* Markdown inside msg-body */
+  .msg-body h1,.msg-body h2,.msg-body h3 {
+    font-family: var(--font-serif);
+    font-weight: normal;
+    margin: 1rem 0 0.4rem;
+    color: var(--text);
+  }
+  .msg-body h2 { font-size: 1.05rem; }
+  .msg-body h3 { font-size: 0.95rem; }
+  .msg-body p { margin-bottom: 0.6rem; }
+  .msg-body ul, .msg-body ol { padding-left: 1.25rem; margin-bottom: 0.6rem; }
+  .msg-body li { margin-bottom: 0.2rem; }
+  .msg-body strong { font-weight: 600; color: var(--text); }
+  .msg-body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+    display: block;
+  }
+  .msg-body th {
+    background: var(--page);
+    border: 0.5px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-mid);
+    white-space: nowrap;
+  }
+  .msg-body td {
+    border: 0.5px solid var(--border);
+    padding: 6px 10px;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .msg-body tr:hover td { background: #fafcfa; }
+  .msg-body code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--page);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 0.5px solid var(--border);
+  }
+  .msg-body blockquote {
+    border-left: 3px solid var(--leaf-mid);
+    padding-left: 0.75rem;
+    color: var(--text-mid);
+    font-style: italic;
+    margin: 0.5rem 0;
+  }
+
+  /* Badge row under analysis */
+  .msg-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 0.75rem; }
+
+  /* Typing indicator */
+  .typing-indicator {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0.75rem 1rem;
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    width: fit-content;
+  }
+  .typing-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--leaf);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* Input bar */
+  #input-bar {
+    display: none;
+    padding: 1rem 2rem;
+    background: var(--card);
+    border-top: 0.5px solid var(--border);
+    flex-shrink: 0;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  #input-bar.visible { display: flex; }
+  #chat-input {
+    flex: 1;
+    resize: none;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.9rem;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--text);
+    background: var(--page);
+    outline: none;
+    transition: var(--transition);
+    max-height: 120px;
+    line-height: 1.5;
+  }
+  #chat-input:focus { border-color: var(--leaf); background: var(--card); }
+  #chat-input::placeholder { color: var(--text-muted); }
+  #send-btn {
+    width: 36px; height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--forest-btn);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+  }
+  #send-btn:hover { background: var(--forest-btn-hover); }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  #send-btn svg { width: 15px; height: 15px; }
+
+  /* Scrollbar */
+  #content::-webkit-scrollbar { width: 5px; }
+  #content::-webkit-scrollbar-track { background: transparent; }
+  #content::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 3px; }
+
+  /* Fade-in animation */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.25s ease forwards; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    #metrics { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 680px) {
+    #panel { width: 220px; min-width: 220px; }
+    #content, #input-bar { padding-left: 1rem; padding-right: 1rem; }
+    #topbar { padding: 0.75rem 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ LEFT PANEL -->
+<aside id="panel">
+
+  <div class="panel-logo">
+    <div class="panel-logo-mark">🌿</div>
+    <span class="panel-logo-name">ESG Analyzer</span>
+  </div>
+  <div class="panel-frameworks">GRI &nbsp;·&nbsp; SASB &nbsp;·&nbsp; IFRS</div>
+
+  <div id="api-status" class="offline">
+    <span class="dot"></span>
+    <span id="api-status-text">Checking API...</span>
+  </div>
+
+  <div class="panel-label">Report</div>
+  <div id="drop-zone">
+    <input type="file" id="file-input" accept=".pdf,.docx,.txt" multiple />
+    <div class="drop-icon">📄</div>
+    <div class="drop-text">
+      <strong>Drop your report here</strong><br>
+      or click to browse<br>
+      PDF · DOCX · TXT
+    </div>
+  </div>
+  <div id="file-list"></div>
+
+  <div class="panel-label">Frameworks</div>
+  <div class="framework-group">
+    <label class="framework-item">
+      <input type="checkbox" id="fw-gri" checked />
+      GRI Standards
+      <span class="framework-badge">Universal</span>
+    </label>
+    <label class="framework-item">
+      <input type="checkbox" id="fw-sasb" checked />
+      SASB
+      <span class="framework-badge">Industry</span>
+    </label>
+    <label class="framework-item">
+      <input type="checkbox" id="fw-ifrs" checked />
+      IFRS S1/S2
+      <span class="framework-badge">Financial</span>
+    </label>
+  </div>
+
+  <button class="btn btn-primary" id="analyze-btn" disabled>
+    🔍 Run ESG Analysis
+  </button>
+
+  <div id="session-section" style="display:none;">
+    <div class="panel-label">Session</div>
+    <div class="session-id" id="session-id-display">—</div>
+  </div>
+
+  <div id="coverage-section" style="display:none;">
+    <div class="panel-label">Coverage detected</div>
+    <div class="badge-row" id="coverage-badges"></div>
+  </div>
+
+  <div id="download-section" style="display:none;">
+    <div class="panel-label">Export</div>
+    <button class="btn btn-download" id="download-btn">⬇ Download report (.md)</button>
+  </div>
+
+  <div class="panel-spacer"></div>
+
+  <button class="btn btn-ghost" id="new-session-btn" style="display:none;">
+    ↺ New session
+  </button>
+
+</aside>
+
+<!-- ═══════════════════════════════════════════════ MAIN -->
+<main id="main">
+
+  <div id="topbar">
+    <div class="topbar-title">ESG Report Analyzer</div>
+    <div class="topbar-sub">Upload a sustainability report · Analyze against global standards · Ask follow-up questions</div>
+  </div>
+
+  <div id="content">
+
+    <!-- Empty state -->
+    <div id="empty-state">
+      <div class="empty-icon">🌿</div>
+      <div class="empty-title">Ready to analyze your ESG report</div>
+      <div class="empty-body">
+        Upload a sustainability report on the left, select your frameworks, and click
+        <strong>Run ESG Analysis</strong> to get started.<br><br>
+        The tool will assess coverage, detect vague disclosures, and map your report
+        against <strong>GRI</strong>, <strong>SASB</strong>, and <strong>IFRS S1/S2</strong> standards.
+      </div>
+    </div>
+
+    <!-- Progress banner -->
+    <div id="progress-banner">
+      <div class="progress-title" id="progress-title">Uploading report...</div>
+      <div class="progress-sub" id="progress-sub">Building vector index</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <!-- Analysis complete banner -->
+    <div id="analysis-banner">
+      <div class="banner-left">
+        <div class="banner-title">Analysis complete</div>
+        <div class="banner-sub" id="banner-filename">—</div>
+      </div>
+      <div class="banner-badge-row" id="banner-badges"></div>
+    </div>
+
+    <!-- Metric cards -->
+    <div id="metrics">
+      <div class="metric-card" id="mc-coverage">
+        <div class="metric-label">ESG Coverage</div>
+        <div class="metric-value" id="mv-coverage">—</div>
+        <div class="metric-sub">of key topics addressed</div>
+      </div>
+      <div class="metric-card" id="mc-gaps">
+        <div class="metric-label">Gaps found</div>
+        <div class="metric-value" id="mv-gaps">—</div>
+        <div class="metric-sub">missing or vague sections</div>
+      </div>
+      <div class="metric-card" id="mc-compliance">
+        <div class="metric-label">Compliance</div>
+        <div class="metric-value" id="mv-compliance">—</div>
+        <div class="metric-sub">overall alignment</div>
+      </div>
+      <div class="metric-card" id="mc-confidence">
+        <div class="metric-label">Confidence</div>
+        <div class="metric-value" id="mv-confidence">—</div>
+        <div class="metric-sub">avg. classification score</div>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat-area"></div>
+
+  </div>
+
+  <!-- Input bar -->
+  <div id="input-bar">
+    <textarea
+      id="chat-input"
+      rows="1"
+      placeholder="Ask a follow-up question about the report..."
+    ></textarea>
+    <button id="send-btn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+
+</main>
+
+<script>
+const API = 'http://localhost:8000';
+
+// ── State ──
+const state = {
+  sessionId:      null,
+  files:          [],
+  analysisReport: null,
+  analysisActive: false,
+  esgLabels:      [],
+};
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+const analyzeBtn    = $('analyze-btn');
+const dropZone      = $('drop-zone');
+const fileInput     = $('file-input');
+const fileList      = $('file-list');
+const chatArea      = $('chat-area');
+const chatInput     = $('chat-input');
+const sendBtn       = $('send-btn');
+const inputBar      = $('input-bar');
+const emptyState    = $('empty-state');
+const progressBanner= $('progress-banner');
+const analysisBanner= $('analysis-banner');
+const metrics       = $('metrics');
+const newSessionBtn = $('new-session-btn');
+const downloadBtn   = $('download-btn');
+
+// ── API health ──
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(4000) });
+    const ok = r.ok;
+    $('api-status').className = ok ? 'online' : 'offline';
+    $('api-status-text').textContent = ok ? 'API connected' : 'API offline';
+    return ok;
+  } catch {
+    $('api-status').className = 'offline';
+    $('api-status-text').textContent = 'API offline';
+    return false;
+  }
+}
+checkHealth();
+setInterval(checkHealth, 15000);
+
+// ── File handling ──
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFiles([...e.dataTransfer.files]);
+});
+fileInput.addEventListener('change', () => handleFiles([...fileInput.files]));
+
+function handleFiles(files) {
+  const allowed = ['.pdf', '.docx', '.txt'];
+  const valid = files.filter(f => allowed.some(ext => f.name.toLowerCase().endsWith(ext)));
+  if (!valid.length) return;
+  state.files = valid;
+  renderFileList();
+  updateAnalyzeBtn();
+}
+
+function renderFileList() {
+  fileList.innerHTML = '';
+  state.files.forEach(f => {
+    const size = f.size < 1024*1024
+      ? `${(f.size/1024).toFixed(0)} KB`
+      : `${(f.size/1024/1024).toFixed(1)} MB`;
+    const ext = f.name.split('.').pop().toUpperCase();
+    const icons = { PDF: '📕', DOCX: '📘', TXT: '📄' };
+    const el = document.createElement('div');
+    el.className = 'file-item fade-up';
+    el.innerHTML = `
+      <span class="file-item-icon">${icons[ext] || '📄'}</span>
+      <span class="file-item-name">${f.name}</span>
+      <span class="file-item-size">${size}</span>
+    `;
+    fileList.appendChild(el);
+  });
+}
+
+function updateAnalyzeBtn() {
+  analyzeBtn.disabled = !state.files.length || state.analysisActive;
+}
+
+// ── Analysis ──
+analyzeBtn.addEventListener('click', runAnalysis);
+
+async function runAnalysis() {
+  const healthy = await checkHealth();
+  if (!healthy) { alert('The API server is offline. Start it with: uvicorn src.backend.fastapi_logic:app --reload'); return; }
+  if (!state.files.length) return;
+
+  state.analysisActive = true;
+  updateAnalyzeBtn();
+  emptyState.style.display = 'none';
+
+  // Step 1: upload
+  showProgress('Uploading report...', 'Parsing and chunking document', 20);
+
+  const form = new FormData();
+  state.files.forEach(f => form.append('files', f));
+
+  let uploadData;
+  try {
+    const r = await fetch(`${API}/upload`, { method: 'POST', body: form });
+    uploadData = await r.json();
+    if (!r.ok) throw new Error(uploadData.detail || 'Upload failed');
+  } catch(e) {
+    hideProgress();
+    showError(`Upload failed: ${e.message}`);
+    state.analysisActive = false;
+    updateAnalyzeBtn();
+    return;
+  }
+
+  state.sessionId = uploadData.session_id;
+  showSession(state.sessionId);
+  showProgress('Building vector index...', `Indexed ${uploadData.chunks_indexed} chunks`, 55);
+
+  // Step 2: initial analysis
+  const frameworks = [];
+  if ($('fw-gri').checked)  frameworks.push('GRI');
+  if ($('fw-sasb').checked) frameworks.push('SASB');
+  if ($('fw-ifrs').checked) frameworks.push('IFRS');
+
+  const initialQuery = [
+    'Provide a full ESG analysis of this report.',
+    'Cover environmental, social, and governance topics.',
+    'Identify compliance gaps, vague disclosures, and missing sections',
+    `against ${frameworks.join(', ')} standards.`,
+    'Include the full structured table of ESG percepts.'
+  ].join(' ');
+
+  showProgress('Running ESG analysis...', 'Classifying sections and querying LLM', 80);
+
+  let analysis;
+  try {
+    const r = await fetch(`${API}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: initialQuery, session_id: state.sessionId })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || 'Analysis failed');
+    analysis = data.response;
+  } catch(e) {
+    hideProgress();
+    showError(`Analysis failed: ${e.message}`);
+    state.analysisActive = false;
+    updateAnalyzeBtn();
+    return;
+  }
+
+  hideProgress();
+  state.analysisReport = analysis;
+  state.esgLabels = extractLabels(analysis);
+
+  // Render results
+  renderAnalysisBanner();
+  renderMetrics(analysis);
+  appendAssistantMessage(analysis, true);
+  showInputBar();
+  showDownload();
+  newSessionBtn.style.display = 'block';
+
+  state.analysisActive = false;
+  updateAnalyzeBtn();
+  scrollBottom();
+}
+
+// ── Progress ──
+function showProgress(title, sub, pct) {
+  progressBanner.classList.add('visible');
+  $('progress-title').textContent = title;
+  $('progress-sub').textContent = sub;
+  setTimeout(() => { $('progress-fill').style.width = pct + '%'; }, 50);
+}
+function hideProgress() {
+  progressBanner.classList.remove('visible');
+  $('progress-fill').style.width = '0%';
+}
+
+// ── Analysis banner ──
+function renderAnalysisBanner() {
+  analysisBanner.classList.add('visible');
+  $('banner-filename').textContent = state.files.map(f => f.name).join(', ');
+  const row = $('banner-badges');
+  row.innerHTML = '';
+  state.esgLabels.forEach(l => {
+    const b = document.createElement('span');
+    b.className = `badge badge-${l[0].toLowerCase()}`;
+    b.textContent = l;
+    row.appendChild(b);
+  });
+  $('coverage-section').style.display = 'block';
+  const cb = $('coverage-badges');
+  cb.innerHTML = '';
+  state.esgLabels.forEach(l => {
+    const b = document.createElement('span');
+    b.className = `badge badge-${l[0].toLowerCase()}`;
+    b.textContent = l;
+    cb.appendChild(b);
+  });
+}
+
+// ── Metric cards ──
+function renderMetrics(text) {
+  metrics.classList.add('visible');
+
+  // Coverage — count "Meets" vs total rows roughly
+  const meetsCount   = (text.match(/\bMeets\b/gi) || []).length;
+  const partialCount = (text.match(/\bPartially Meets\b/gi) || []).length;
+  const failsCount   = (text.match(/\bFails\b/gi) || []).length;
+  const total = meetsCount + partialCount + failsCount || 1;
+  const coverage = Math.round((meetsCount / total) * 100);
+
+  // Gaps — "Fails" + vague count
+  const vagueCount = (text.match(/\bVague\b/gi) || []).length;
+  const gaps = failsCount + vagueCount;
+
+  // Compliance
+  const complianceMap = [
+    [0.7,  'Strong',  'green'],
+    [0.4,  'Partial', 'amber'],
+    [0,    'Low',     'red'],
+  ];
+  const ratio = meetsCount / total;
+  const [, compLabel, compClass] = complianceMap.find(([t]) => ratio >= t);
+
+  // Confidence — scan for decimal scores
+  const scores = [...text.matchAll(/\b0\.\d{2,3}\b/g)].map(m => parseFloat(m[0]));
+  const avgConf = scores.length
+    ? (scores.reduce((a,b) => a+b, 0) / scores.length).toFixed(2)
+    : '—';
+
+  $('mv-coverage').textContent = coverage + '%';
+  $('mc-coverage').className = `metric-card ${coverage >= 70 ? 'green' : coverage >= 40 ? 'amber' : 'red'}`;
+
+  $('mv-gaps').textContent = gaps;
+  $('mc-gaps').className = `metric-card ${gaps <= 3 ? 'green' : gaps <= 8 ? 'amber' : 'red'}`;
+
+  $('mv-compliance').textContent = compLabel;
+  $('mc-compliance').className = `metric-card ${compClass}`;
+
+  $('mv-confidence').textContent = avgConf;
+  $('mc-confidence').className = `metric-card ${avgConf >= 0.85 ? 'green' : avgConf >= 0.7 ? 'amber' : 'red'}`;
+}
+
+// ── Chat ──
+function appendUserMessage(text) {
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const el = document.createElement('div');
+  el.className = 'msg user fade-up';
+  el.innerHTML = `
+    <div class="msg-meta">You · ${now}</div>
+    <div class="msg-body user-body">${escapeHtml(text)}</div>
+  `;
+  chatArea.appendChild(el);
+  scrollBottom();
+}
+
+function appendAssistantMessage(text, isAnalysis = false) {
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const label = isAnalysis ? '📊 ESG Analysis' : '🤖 Assistant';
+  const html = marked.parse(text);
+
+  let badgesHtml = '';
+  if (isAnalysis && state.esgLabels.length) {
+    badgesHtml = `<div class="msg-badges">
+      ${state.esgLabels.map(l =>
+        `<span class="badge badge-${l[0].toLowerCase()}">${l}</span>`
+      ).join('')}
+    </div>`;
+  }
+
+  const el = document.createElement('div');
+  el.className = 'msg fade-up';
+  el.innerHTML = `
+    <div class="msg-meta">${label} · ${now}</div>
+    <div class="msg-body">${html}${badgesHtml}</div>
+  `;
+  chatArea.appendChild(el);
+  scrollBottom();
+}
+
+function showTyping() {
+  const el = document.createElement('div');
+  el.className = 'msg fade-up';
+  el.id = 'typing';
+  el.innerHTML = `
+    <div class="msg-meta">Assistant</div>
+    <div class="typing-indicator">
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+      <div class="typing-dot"></div>
+    </div>
+  `;
+  chatArea.appendChild(el);
+  scrollBottom();
+}
+
+function hideTyping() {
+  const t = $('typing');
+  if (t) t.remove();
+}
+
+function showError(msg) {
+  const el = document.createElement('div');
+  el.className = 'msg fade-up';
+  el.innerHTML = `
+    <div class="msg-body" style="background:var(--warn-bg);color:var(--warn-text);border-color:#ffc107;">
+      ⚠ ${escapeHtml(msg)}
+    </div>
+  `;
+  chatArea.appendChild(el);
+  scrollBottom();
+}
+
+// ── Send follow-up ──
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+chatInput.addEventListener('input', () => {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+  sendBtn.disabled = !chatInput.value.trim();
+});
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text || !state.sessionId) return;
+
+  chatInput.value = '';
+  chatInput.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  appendUserMessage(text);
+  showTyping();
+
+  try {
+    const r = await fetch(`${API}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: text, session_id: state.sessionId })
+    });
+    const data = await r.json();
+    hideTyping();
+    if (!r.ok) throw new Error(data.detail || 'Query failed');
+    appendAssistantMessage(data.response, false);
+  } catch(e) {
+    hideTyping();
+    showError(`Query failed: ${e.message}`);
+  }
+}
+
+// ── New session ──
+newSessionBtn.addEventListener('click', async () => {
+  if (!confirm('Start a new session? This will clear the current analysis.')) return;
+  if (state.sessionId) {
+    try { await fetch(`${API}/session/${state.sessionId}`, { method: 'DELETE' }); } catch {}
+  }
+  resetState();
+});
+
+function resetState() {
+  state.sessionId = null;
+  state.files = [];
+  state.analysisReport = null;
+  state.analysisActive = false;
+  state.esgLabels = [];
+
+  fileList.innerHTML = '';
+  chatArea.innerHTML = '';
+  fileInput.value = '';
+  chatInput.value = '';
+
+  emptyState.style.display = 'flex';
+  progressBanner.classList.remove('visible');
+  analysisBanner.classList.remove('visible');
+  metrics.classList.remove('visible');
+  inputBar.classList.remove('visible');
+
+  $('session-section').style.display = 'none';
+  $('coverage-section').style.display = 'none';
+  $('download-section').style.display = 'none';
+  newSessionBtn.style.display = 'none';
+
+  updateAnalyzeBtn();
+}
+
+// ── Download ──
+downloadBtn.addEventListener('click', () => {
+  if (!state.analysisReport) return;
+  const ts = new Date().toISOString().slice(0,16).replace('T','_').replace(':','');
+  const blob = new Blob([state.analysisReport], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `esg_analysis_${ts}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ── Helpers ──
+function showSession(id) {
+  $('session-section').style.display = 'block';
+  $('session-id-display').textContent = id.slice(0, 8) + '…';
+}
+
+function showInputBar() {
+  inputBar.classList.add('visible');
+}
+
+function showDownload() {
+  $('download-section').style.display = 'block';
+}
+
+function extractLabels(text) {
+  const labels = [];
+  if (/environmental/i.test(text)) labels.push('Environmental');
+  if (/\bsocial\b/i.test(text))   labels.push('Social');
+  if (/governance/i.test(text))    labels.push('Governance');
+  return [...new Set(labels)];
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function scrollBottom() {
+  const c = $('content');
+  requestAnimationFrame(() => { c.scrollTop = c.scrollHeight; });
+}
+</script>
+</body>
+</html>

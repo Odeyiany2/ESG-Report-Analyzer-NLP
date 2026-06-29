@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict
 from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
@@ -26,6 +27,13 @@ app = FastAPI(
     description="AI-powered ESG report analysis against GRI, SASB, and IFRS standards.",
     version="1.0.0"
 
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # tighten this in production
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 #load the standard ESG documents from the specified directory
