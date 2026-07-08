@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict
+from typing import List, Dict 
 from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
 from src.nlp.retriever import Retriever
@@ -35,6 +35,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+def read_root():
+    return {"Python": "on Vercel"}
 
 #load the standard ESG documents from the specified directory
 standard_docs_dir = os.path.normpath(os.getenv("STANDARD_DOCS_DIR", "data/standards"))
