@@ -1,2 +1,2 @@
 [tool.vercel]
-entrypoint = "src.backend.server:app"
+entrypoint = "src.backend.app:app"
