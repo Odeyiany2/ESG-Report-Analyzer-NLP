@@ -341,7 +341,7 @@
   // ── Config — swap this URL when you deploy the backend ──
   const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'http://localhost:8000'
-    : 'https://your-api.railway.app';  // ← replace with your Railway URL after deploying
+    : 'remarkable-trust-production.up.railway.app';  // ← replace with your Railway URL after deploying
 
   const state = { sessionId:null, files:[], analysisReport:null, analysisActive:false, esgLabels:[] };
   const $=id=>document.getElementById(id);
