@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "ESG-Report-Analyzer-NLP/src/frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/app",
+      "dest": "ESG-Report-Analyzer-NLP/src/frontend/app.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "ESG-Report-Analyzer-NLP/src/frontend/index.html"
+    }
+  ]
+}
