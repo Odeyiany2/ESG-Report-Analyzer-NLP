@@ -229,6 +229,13 @@ The app will open at `http://localhost:8501`.
 - [ ] Production-ready deployment with Redis session store
 - [ ] Automated test suite
 
+## Demo Video
+
+
+
+https://github.com/user-attachments/assets/307fe1bf-1960-4d49-8225-a4e876363ce1
+
+
 ---
 
 ## Disclaimer
