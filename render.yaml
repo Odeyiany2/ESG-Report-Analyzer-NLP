@@ -18,3 +18,5 @@ services:
         value: esg_vectorstores/uploaded_reports
       - key: PROMPTS_FILE_PATH
         value: src/nlp/prompt_esg.yml
+      - key: EMBEDDING_MODEL_NAME
+        value: sentence-transformers/all-MiniLM-L6-v2

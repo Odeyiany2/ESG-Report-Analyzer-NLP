@@ -53,14 +53,20 @@ reports_vector_path = os.path.normpath(os.getenv("REPORTS_VECTORSTORE_PATH", "es
 #get the file path for the prompts yaml file
 prompts_file_path = os.path.normpath(os.getenv("PROMPTS_FILE_PATH", "src/nlp/prompt_esg.yml"))
 
-#initialize embedding handler once at startup (expensive operation)
-try:
-    api_logger.info("Initializing embedding handler at app startup...")
-    embedding_handler = EmbeddingHandler()
-    api_logger.info("Embedding handler initialized successfully.")
-except Exception as e:
-    api_logger.error(f"Failed to initialize embedding handler: {e}")
-    embedding_handler = None
+# Lazy-load the embedding handler instead of loading the model at app startup.
+# This keeps free-tier hosts such as Render from running out of memory before
+# the health endpoint can open a port.
+embedding_handler = None
+
+
+def get_embedding_handler():
+    global embedding_handler
+    if embedding_handler is None:
+        model_name = os.getenv("EMBEDDING_MODEL_NAME", "sentence-transformers/all-MiniLM-L6-v2")
+        api_logger.info(f"Initializing embedding handler with model: {model_name}")
+        embedding_handler = EmbeddingHandler(model_name=model_name)
+        api_logger.info("Embedding handler initialized successfully.")
+    return embedding_handler
 
 @app.get("/health")
 async def health_check():
@@ -137,13 +143,14 @@ async def query_assistant(request:Request):
                 "response": session_analysis_cache[session_id]
             })
         
-        #check if embedding handler is initialized
-        if embedding_handler is None:
-            api_logger.error("Embedding handler not initialized.")
+        # Initialize embeddings lazily only when a report analysis is requested.
+        try:
+            active_embedding_handler = get_embedding_handler()
+        except Exception as e:
+            api_logger.error(f"Embedding handler failed to initialize: {e}")
             raise HTTPException(status_code=500, detail="System not ready. Embedding handler failed to initialize.")
         
-        #initialize the retriever with the pre-initialized embedding handler
-        retriever = Retriever(embedding_handler=embedding_handler)
+        retriever = Retriever(embedding_handler=active_embedding_handler)
 
         session_reports_path = os.path.normpath(os.path.join(reports_vector_path, session_id))
         retriever.create_vector_store(
