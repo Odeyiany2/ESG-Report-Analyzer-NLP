@@ -35,7 +35,7 @@ def retrieve_node(state: ESGstate, retriever: Retriever) -> ESGstate:
 
 #classify ESG aspects node
 def classify_node(state: ESGstate, retriever: Retriever) -> dict:
-    """classify retrieved report sections into E, S, G categories using FinBert"""
+    """Classify retrieved report sections into E, S, G categories."""
     retrieved_docs = state.get("retrieved_docs")
     if not retrieved_docs:
         esg_agents_logger.error("No documents retrieved to classify.")
@@ -69,6 +69,12 @@ def summarize_node(state: ESGstate, retriever: Retriever, prompt_file: str) -> E
         }
 
     prompt = retriever.load_prompts(prompt_file)
+    prior_analysis = state.get("prior_analysis", "")
+    if prior_analysis:
+        prompt["prior_analysis"] = (
+            f"Prior analysis of this report (do not contradict it unless asked):\n{prior_analysis}\n"
+        )
+
     full_prompt = retriever.build_prompt(
             query=state["query"],
             context=context,
