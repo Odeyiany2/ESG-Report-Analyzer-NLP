@@ -151,11 +151,9 @@ tenacity
 threadpoolctl
 tokenizers
 toml
-torch
 tornado
 tqdm
 traitlets
-transformers
 typer
 typing-inspect
 typing-inspection

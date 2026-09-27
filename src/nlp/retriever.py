@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from textwrap import dedent
+import requests
 from openai import OpenAI
 from langchain_core.documents import Document
-from transformers import BertTokenizer, pipeline, BertForSequenceClassification
 from src.nlp.embeddings import EmbeddingHandler
 from src.utils.logging import retriever_logger
 
@@ -18,13 +18,8 @@ gpt_client = OpenAI(
     api_key=os.getenv("HUGGINGFACE_API_KEY")
 )
 
-#set up the tokenizer and model for esg classification
-finbert = BertForSequenceClassification.from_pretrained(
-    "yiyanghkust/finbert-esg", num_labels=4, output_attentions=True)
-
-tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-esg")
-nlp_classifier = pipeline("text-classification", model = finbert, tokenizer = tokenizer,
-                          truncation = True, max_length = 512)
+TYPESAFE_JEV_ENDPOINT = "https://api.typesafe.ai/v1/systemone"
+TYPESAFE_JEV_MODEL = "jev-latest"
 
 #retrieval and comparison class
 class Retriever:
@@ -92,6 +87,9 @@ class Retriever:
         """
         # merge all context sections into a single string
         try:
+            standards_context = " \n".join(context.get("standards", []))
+            reports_context = " \n".join(context.get("reports", []))
+
             prompt = dedent(f"""
                             {prompt_data.get("persona", "")}
 
@@ -100,10 +98,10 @@ class Retriever:
                             {prompt_data.get("context_instructions", "")}
 
                             Standards Context:
-                            {" \n".join(context.get("standards", []))}
+                            {standards_context}
 
                             Reports Context (with ESG classifications):
-                            {" \n".join(context.get("reports", []))}
+                            {reports_context}
 
                             Task Instructions:
                             {prompt_data.get("task_instructions", "")}
@@ -145,52 +143,73 @@ class Retriever:
             "reports": [doc.page_content for doc in reports_docs]
         }
     
-    #classify the ESG aspects of the report content using the finbert model
+    #classify the ESG aspects of the report content using TypeSafe Jev
     def classify_esg(self, text:str)-> List[Dict]:
         """
-        Classifies a text chunk into one of FinBERT-ESG's four categories:
+        Classifies a text chunk into one of Jev's four ESG categories:
         Environmental, Social, Governance, or None.
-        Truncation to 512 tokens is handled by the pipeline (set at init).
         """
         try:
-            results = nlp_classifier(text)
-            retriever_logger.info("ESG classification completed.")
-            return results
+            api_key = os.getenv("TYPESAFE_API_KEY")
+            if not api_key:
+                raise ValueError("TYPESAFE_API_KEY is not set.")
+
+            payload = {
+                "state": text,
+                "model": TYPESAFE_JEV_MODEL,
+                "questions": {
+                    "esg_category": {
+                        "type": "choice",
+                        "instructions": "Which ESG category does this text chunk primarily belong to?",
+                        "criteria": {
+                            "Environmental": "Environmental topics such as emissions, energy, climate, water, waste, biodiversity, pollution, or environmental management.",
+                            "Social": "Social topics such as labor, human rights, health and safety, community impact, diversity, customers, or supply-chain social issues.",
+                            "Governance": "Governance topics such as board oversight, ethics, compliance, risk management, transparency, anti-corruption, controls, or executive accountability.",
+                            "None": "The text does not contain meaningful ESG disclosure or cannot be assigned to Environmental, Social, or Governance."
+                        }
+                    }
+                }
+            }
+
+            response = requests.post(
+                TYPESAFE_JEV_ENDPOINT,
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                },
+                json=payload,
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            answer = data.get("answers", {}).get("esg_category", {})
+            label = answer.get("choice", "None")
+            probabilities = answer.get("probabilities", {})
+            score = answer.get("confidence", probabilities.get(label, 0.0))
+
+            retriever_logger.info("ESG classification completed via TypeSafe Jev.")
+            return [{
+                "label": label,
+                "score": float(score or 0.0),
+                "probabilities": probabilities
+            }]
         except Exception as e:
-            retriever_logger.error(f"Error during ESG classification: {e}")
-            print(f"Error during ESG classification: {e}")
+            retriever_logger.error(f"Error during Jev ESG classification: {e}")
+            print(f"Error during Jev ESG classification: {e}")
             return [{"label": "ERROR", "score": 0.0}]
     
     #explainability layer
-    def explain_classification(self, text:str, classification:Dict) -> str:
-        """Provide explanations for the ESG classification results by showing the most influential tokens."""
-        try:
-            inputs = tokenizer(
-                text,
-                return_tensors="pt",
-                truncation=True,
-                max_length=512,
-                padding=True
-            )
-            outputs = finbert(**inputs)
-            attentions = outputs.attentions[-1].mean(dim =1)
-            top_indices = attentions[0].topk(5).indices.tolist()
-            top_tokens = [tokenizer.decode([inputs["input_ids"][0][i]]) for i in top_indices]
-            explanation = (
-                f"Classification '{classification['label']}' "
-                f"(confidence: {classification['score']:.3f}) — "
-                f"key tokens: {', '.join(top_tokens)}"
-            )
-            return explanation
-        except Exception as e:
-            retriever_logger.error(f"Error during explainability: {e}")
-            return "Explanation unavailable."
+    def explain_classification(self, text: str, classification: Dict) -> str:
+        return (
+            f"Classification '{classification['label']}' "
+            f"with calibrated confidence {classification['score']:.3f} "
+            f"via TypeSafe Jev"
+        )
     
     #enrich context with ESG classifications
     def enrich_context_with_esg(self, report_sections: List[str]) -> Optional[List[Dict]]:
         """
-        Runs each retrieved report chunk through FinBERT-ESG classification
-        and the attention-based explainability layer.
+        Runs each retrieved report chunk through TypeSafe Jev classification.
  
         Returns a list of dicts with keys: text, esg_label, confidence, important_tokens.
         The caller (orchestrator summarize_node) is responsible for serializing
