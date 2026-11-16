@@ -1,0 +1,42 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # sentence-transformers (torch) is skipped: tests never load the embedding model
+      - name: Install dependencies
+        run: |
+          grep -v sentence-transformers requirements.txt > /tmp/req-ci.txt
+          pip install -r /tmp/req-ci.txt pytest httpx ruff
+      - name: Lint (syntax errors and undefined names only)
+        run: ruff check src tests scripts --select E9,F63,F7,F82
+      - name: Tests
+        env:
+          HUGGINGFACE_API_KEY: ci-dummy-key
+        run: pytest -q
+
+  # Optional: deploy only after tests pass. Add RENDER_DEPLOY_HOOK_URL as a repo secret
+  # and switch the Render service's Auto-Deploy to "Off" so it deploys only from here.
+  deploy-backend:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "No deploy hook set; skipping."; exit 0; fi
+          curl -fsS -X POST "$HOOK"
+
