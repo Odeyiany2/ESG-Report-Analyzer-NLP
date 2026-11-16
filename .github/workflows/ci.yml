@@ -24,7 +24,7 @@ jobs:
       - name: Tests
         env:
           HUGGINGFACE_API_KEY: ci-dummy-key
-        run: pytest -q
+        run: python -m pytest -q
 
   # Optional: deploy only after tests pass. Add RENDER_DEPLOY_HOOK_URL as a repo secret
   # and switch the Render service's Auto-Deploy to "Off" so it deploys only from here.
