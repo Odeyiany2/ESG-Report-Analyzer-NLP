@@ -1,4 +1,3 @@
-from urllib import response
 import uuid
 import os
 from dotenv import load_dotenv
@@ -10,6 +9,7 @@ from src.nlp.doc_handler import DocumentHandler
 from src.nlp.embeddings import EmbeddingHandler
 from src.nlp.retriever import Retriever
 from src.agentic_ai.orchestrator import run_esg_analysis
+from src.nlp.assurance import run_assurance_readiness
 from src.utils.logging import api_logger
 
 
@@ -19,6 +19,7 @@ load_dotenv()
 # Add to your session store
 user_uploaded_report: Dict[str, List] = {}
 session_analysis_cache: Dict[str, str] = {}  # session_id → initial analysis
+session_assurance_cache: Dict[str, dict] = {}
 INITIAL_QUERY_MARKER = "Provide a full ESG analysis"
 
 
@@ -39,12 +40,23 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"Python": "on Vercel"}
+    return {"service": "ESG Report Analyzer API", "docs": "/docs", "health": "/health"}
 
-#load the standard ESG documents from the specified directory
+#standard documents are only parsed if the prebuilt standards vector store is missing
 standard_docs_dir = os.path.normpath(os.getenv("STANDARD_DOCS_DIR", "data/raw/standards"))
-doc_handler = DocumentHandler()
-standard_documents = doc_handler.load_standard_documents(standard_docs_dir)
+_standard_documents = None
+
+
+def get_standard_documents():
+    global _standard_documents
+    if _standard_documents is None:
+        _standard_documents = DocumentHandler().load_standard_documents(standard_docs_dir)
+    return _standard_documents
+
+
+def standards_store_ready() -> bool:
+    p = os.path.normpath(os.getenv("STANDARD_VECTORSTORE_PATH", "esg_vectorstores/standards"))
+    return os.path.isdir(p) and any(os.scandir(p))
 
 #get the file paths for vector stores from environment variables
 standards_vector_path = os.path.normpath(os.getenv("STANDARD_VECTORSTORE_PATH", "esg_vectorstores/standards"))
@@ -76,7 +88,7 @@ async def health_check():
     return {
         "status": "ok", 
         "message": "API is running smoothly.",
-        "standard_docs_loaded": len(standard_documents),}
+        "standards_store_ready": standards_store_ready(),}
 
 
 @app.post("/upload")
@@ -155,7 +167,7 @@ async def query_assistant(request:Request):
         session_reports_path = os.path.normpath(os.path.join(reports_vector_path, session_id))
         retriever.create_vector_store(
             standards_vector_path=standards_vector_path,
-            standard_docs=standard_documents,
+            standard_docs=[] if standards_store_ready() else get_standard_documents(),
             uploaded_report=uploaded_reports,
             reports_vector_path= session_reports_path
         )
@@ -192,6 +204,36 @@ async def query_assistant(request:Request):
         raise HTTPException(status_code=500, detail="Error processing query.")
 
 
+@app.post("/assurance")
+async def assurance_readiness(request: Request):
+    """Assurance-readiness screen: would the report's claims survive third-party assurance?"""
+    try:
+        data = await request.json()
+        session_id = data.get("session_id", "").strip()
+        if not user_uploaded_report.get(session_id):
+            raise HTTPException(status_code=400, detail="No uploaded reports found for the provided session ID.")
+
+        if session_id in session_assurance_cache:
+            return JSONResponse(content={"status": "success", "session_id": session_id,
+                                         "result": session_assurance_cache[session_id]})
+
+        retriever = Retriever(embedding_handler=get_embedding_handler())
+        retriever.create_vector_store(
+            standards_vector_path=standards_vector_path,
+            standard_docs=[] if standards_store_ready() else get_standard_documents(),
+            uploaded_report=user_uploaded_report[session_id],
+            reports_vector_path=os.path.normpath(os.path.join(reports_vector_path, session_id)),
+        )
+        result = run_assurance_readiness(retriever)
+        session_assurance_cache[session_id] = result
+        return JSONResponse(content={"status": "success", "session_id": session_id, "result": result})
+    except HTTPException:
+        raise
+    except Exception as e:
+        api_logger.error(f"Assurance readiness failed: {e}")
+        raise HTTPException(status_code=500, detail="Error running assurance readiness check.")
+
+
 @app.delete("/session/{session_id}")
 async def clear_session(session_id: str):
     """
@@ -204,6 +246,7 @@ async def clear_session(session_id: str):
  
     del user_uploaded_report[session_id]
     session_analysis_cache.pop(session_id, None)
+    session_assurance_cache.pop(session_id, None)
     api_logger.info(f"Session {session_id} cleared from memory.")
     return JSONResponse(
         content={"status": "success", "message": f"Session '{session_id}' cleared."},
